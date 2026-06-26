@@ -1,12 +1,20 @@
-"""Fetch the Berlin chess RSS feeds, dedup, and print paste-ready draft records.
+"""Fetch the Berlin chess RSS feeds, dedup, and print draft records for review.
 
     python -m bcc.ingest             # live feeds
     python -m bcc.ingest --fixtures  # committed fixtures (offline)
 
 Both feeds are identical Contao RSS, so one parser serves both. Anti-anti-bot UA +
-de-DE on every request. Output for each NEW candidate is a JSON object you paste into
-data/tournaments.json and fix up; `python -m bcc.build` then validates it. That paste +
-edit + validate loop is the whole curation flow — no server, no database.
+de-DE on every request. Output is a JSON array of NEW candidate records (auto-guessed,
+tagged_by=auto). Review them, fix the auto-guessed tags, then insert the ones you want
+via bcc.add so the file keeps its canonical format (NOT a hand-paste, which drifts the
+formatting):
+
+    python -m bcc.ingest --fixtures > drafts.json      # then prune/fix drafts.json
+    python -m bcc.add insert drafts.json               # validates + inserts the batch
+
+`bcc.add insert` runs validate() on every record and refuses the whole batch on any
+failure, so a bad tag can never reach data/tournaments.json. That review + insert +
+validate loop is the whole Berlin curation flow — no server, no database.
 """
 from __future__ import annotations
 
@@ -160,7 +168,7 @@ def main():
     drafts = [draft(g, today) for g in groups if g["nn"] not in rejected]
     new = [d for d in drafts if d["id"] not in existing]
     print(f"# {len(events)} raw events -> {len(groups)} unique -> {len(new)} NEW "
-          f"(paste these into data/tournaments.json, fix tags, then: python -m bcc.build)\n", file=sys.stderr)
+          f"(review/fix tags, then: python -m bcc.add insert <file>)\n", file=sys.stderr)
     print(json.dumps(new, ensure_ascii=False, indent=2))
 
 

@@ -11,5 +11,9 @@ dist/
 
 # local tooling state (contains secrets / machine-local config — never commit)
 .gstack/
-.claude/
+# Ignore .claude/ EXCEPT the project skills, which ship with the repo.
+# (negation needs .claude/* — `.claude/` would stop git descending to re-include children)
+.claude/*
+!.claude/skills/
+.claude/skills/gstack/   # defensive: never commit a vendored gstack copy if one ever appears
 
