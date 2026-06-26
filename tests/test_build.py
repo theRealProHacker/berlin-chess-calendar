@@ -72,7 +72,7 @@ class TestSlug(unittest.TestCase):
 class TestLoad(unittest.TestCase):
     def test_seed(self):
         ts = build.load()
-        self.assertEqual(len(ts), 16)
+        self.assertEqual(len(ts), 17)
         self.assertTrue(all(t["region"] in build.REGION for t in ts))
 
     def test_dup(self):
