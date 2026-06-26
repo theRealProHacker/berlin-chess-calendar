@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+dist/
+.DS_Store
+*.swp
+.pytest_cache/
+.idea/
+.vscode/
+
+# local tooling state (contains secrets / machine-local config — never commit)
+.gstack/
+.claude/
+
