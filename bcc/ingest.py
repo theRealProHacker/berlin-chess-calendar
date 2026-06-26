@@ -1,56 +1,167 @@
-"""CLI: fetch the feeds, dedup, and report candidates (new vs already-seeded).
+"""Fetch the Berlin chess RSS feeds, dedup, and print paste-ready draft records.
 
-    python -m bcc.ingest            # fetch live feeds
-    python -m bcc.ingest --fixtures # parse the committed test fixtures (offline)
+    python -m bcc.ingest             # live feeds
+    python -m bcc.ingest --fixtures  # committed fixtures (offline)
 
-Phase 1 stops at reporting. Phase 2 turns each NEW candidate into a draft record in
-a review queue where a human tags the six axes and approves it into tournaments.json.
+Both feeds are identical Contao RSS, so one parser serves both. Anti-anti-bot UA +
+de-DE on every request. Output for each NEW candidate is a JSON object you paste into
+data/tournaments.json and fix up; `python -m bcc.build` then validates it. That paste +
+edit + validate loop is the whole curation flow — no server, no database.
 """
 from __future__ import annotations
 
-import argparse
+import json
+import re
+import sys
+import urllib.request
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass
+from datetime import date, datetime, timezone
 from pathlib import Path
 
-from . import dedup as dd
-from . import fetch, models, normalize
+from .build import ROOT, load, slugify
+
+UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+      "(KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36")
+SOURCES = {
+    "dsb-berlin": "https://www.schachbund.de/share/feed-turnierdatenbank-berlin.xml",
+    "bsv-termin": "https://www.berlinerschachverband.de/share/bsv-terminkalender.xml",
+}
+
+_TITLE = re.compile(
+    r"^\s*(\d{2})\.(\d{2})\.(\d{4})"
+    r"(?:\s*[–-]\s*(\d{2})\.(\d{2})\.(\d{4}))?"
+    r"(?:\s*\(([^)]*)\))?\s*(.*\S)\s*$"
+)
+_EURO = re.compile(r"(\d[\d.\s]*)\s*(?:€|Euro|EUR)")
 
 
-def _candidates(use_fixtures: bool) -> list[dd.Candidate]:
-    events = []
-    if use_fixtures:
-        fx = Path(__file__).resolve().parent.parent / "tests" / "fixtures"
-        events += fetch.parse_feed((fx / "dsb-berlin.xml").read_text(encoding="utf-8"), "dsb-berlin")
-        events += fetch.parse_feed((fx / "bsv-terminkalender.xml").read_text(encoding="utf-8"), "bsv-termin")
+@dataclass
+class Raw:
+    source: str
+    name: str
+    start: str
+    end: str
+    edition: int | None
+    link: str
+    desc: str
+    enclosure: str | None
+
+
+def parse_title(title):
+    m = _TITLE.match(title)
+    if not m:
+        raise ValueError(f"unparseable title: {title!r}")
+    d1, m1, y1, d2, m2, y2, _tod, name = m.groups()
+    start = f"{y1}-{m1}-{d1}"
+    end = f"{y2}-{m2}-{d2}" if y2 else start
+    return start, end, name.strip()
+
+
+def parse_edition(name):
+    m = re.match(r"^\s*(\d{1,3})\.\s", name)
+    return int(m.group(1)) if m else None
+
+
+def norm_name(name):
+    s = re.sub(r"\b(?:19|20)\d{2}\b", "", re.sub(r"\b[IVXLC]+\.\s*", "", re.sub(r"\b\d{1,3}\.\s*", "", name))).lower()
+    for a, b in (("ä", "ae"), ("ö", "oe"), ("ü", "ue"), ("ß", "ss")):
+        s = s.replace(a, b)
+    return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", s)).strip()
+
+
+def parse_feed(xml_text, source):
+    out = []
+    for it in ET.fromstring(xml_text).iter("item"):
+        title = (it.findtext("title") or "").strip()
+        start, end, name = parse_title(title)
+        enc = it.find("enclosure")
+        out.append(Raw(source, name, start, end, parse_edition(name),
+                       (it.findtext("link") or "").strip(), it.findtext("description") or "",
+                       enc.get("url") if enc is not None else None))
+    return out
+
+
+def http_get(url):
+    req = urllib.request.Request(url, headers={
+        "User-Agent": UA, "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
+        "Accept": "application/rss+xml, application/xml;q=0.9, */*;q=0.8"})
+    with urllib.request.urlopen(req, timeout=20) as r:  # nosec - fixed https feed urls
+        return r.read().decode("utf-8")
+
+
+def fetch_all(fixtures=False):
+    evs = []
+    if fixtures:
+        fx = ROOT / "tests" / "fixtures"
+        evs += parse_feed((fx / "dsb-berlin.xml").read_text(encoding="utf-8"), "dsb-berlin")
+        evs += parse_feed((fx / "bsv-terminkalender.xml").read_text(encoding="utf-8"), "bsv-termin")
     else:
-        events = fetch.fetch_all()
-    return dd.dedup(events), events
+        for k, url in SOURCES.items():
+            evs += parse_feed(http_get(url), k)
+    return evs
 
 
-def main() -> None:
-    ap = argparse.ArgumentParser(description="Ingest Berlin chess feeds -> candidate list")
-    ap.add_argument("--fixtures", action="store_true", help="use committed fixtures instead of the live feeds")
-    ap.add_argument("--data", default="data/tournaments.json")
-    args = ap.parse_args()
+def dedup(events, window=3):
+    """Group by normalized-name + start within `window` days. Returns merged groups."""
+    groups = []
+    for ev in sorted(events, key=lambda e: (e.start, e.name)):
+        nn = norm_name(ev.name)
+        for g in groups:
+            if g["nn"] == nn and abs((date.fromisoformat(ev.start) - date.fromisoformat(g["evs"][0].start)).days) <= window:
+                g["evs"].append(ev)
+                break
+        else:
+            groups.append({"nn": nn, "evs": [ev]})
+    return groups
 
-    cands, events = _candidates(args.fixtures)
 
-    try:
-        existing = {t.id for t in models.load(args.data)}
-    except Exception:
-        existing = set()
+def draft(group, today):
+    """Build a paste-ready draft dict from a merged group (auto-guessed, tagged_by=auto)."""
+    evs = group["evs"]
+    first = min(evs, key=lambda e: e.start)
+    name = first.name
+    n = name.lower()
+    blob = " ".join(e.desc for e in evs).lower()
+    variant = "tandem" if ("tandem" in n or "bughouse" in n) else ("chess960" if "960" in n or "freestyle" in n else "standard")
+    kind = ("memorial" if "gedenk" in n else "league" if any(k in n for k in ("liga", "bmm", "bfl", "mannschaftsmeisterschaft"))
+            else "festival" if "festival" in n else "championship" if ("meisterschaft" in n or "-em" in n or "-mm" in n) else "open")
+    part = "duo" if variant == "tandem" else ("team" if any(k in n for k in ("mannschaft", "liga", "bmm", "bfl", "team", "pokal")) else "single")
+    tc = ("blitz" if "blitz" in blob or "blitz" in n else "rapid" if "schnell" in blob or "schnell" in n or "rapid" in blob
+          else "classical")
+    prizes = [int(re.sub(r"[.\s]", "", x)) for x in _EURO.findall(blob) if re.sub(r"[.\s]", "", x).isdigit()]
+    d = {
+        "id": slugify(name, first.start[:4]), "name": name, "kind": kind,
+        "start_date": first.start, "end_date": max(e.end for e in evs),
+        "variant": variant, "time_control": tc, "age_limit": ["open"],
+        "participation": part, "schedule_format": "biweekly" if kind == "league" else "block",
+        "region": "berlin", "status": "confirmed",
+        "sources": sorted({e.source for e in evs}), "last_verified": today, "tagged_by": "auto",
+    }
+    if first.edition:
+        d["edition"] = first.edition
+    link = next((e.link for e in evs if e.link), None)
+    if link:
+        d["source_url"] = link
+    if prizes:
+        d["prize_pool"] = {"amount": max(prizes), "currency": "EUR"}
+    return d
 
-    n_new = 0
-    print(f"{len(events)} raw events -> {len(cands)} unique candidates\n")
-    for c in cands:
-        slug = models.slugify(c.name, c.start_date[:4])
-        is_new = slug not in existing
-        n_new += is_new
-        tc = normalize.guess_time_control(" ".join(e.description for e in c.events)) or "?"
-        flag = "NEW" if is_new else "  ·"
-        ed = f" (#{c.edition})" if c.edition else ""
-        print(f"  {flag} {c.start_date}  {c.name}{ed}")
-        print(f"       sources={','.join(c.sources)}  tc≈{tc}")
-    print(f"\n{n_new} new candidate(s) not yet in {args.data}")
+
+def main():
+    fixtures = "--fixtures" in sys.argv
+    today = datetime.now(timezone.utc).date().isoformat()
+    events = fetch_all(fixtures)
+    groups = dedup(events)
+    existing = {r["id"] for r in load()}
+    rejected_path = ROOT / "data" / "rejected.json"
+    rejected = set(json.loads(rejected_path.read_text(encoding="utf-8"))) if rejected_path.exists() else set()
+
+    drafts = [draft(g, today) for g in groups if g["nn"] not in rejected]
+    new = [d for d in drafts if d["id"] not in existing]
+    print(f"# {len(events)} raw events -> {len(groups)} unique -> {len(new)} NEW "
+          f"(paste these into data/tournaments.json, fix tags, then: python -m bcc.build)\n", file=sys.stderr)
+    print(json.dumps(new, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":
