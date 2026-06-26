@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kuratierung · Berliner Schachkalender</title>
+<style>
+  :root{
+    --bg:#f5f5f7; --card:#fff; --ink:#1d1d1f; --ink-2:#6e6e73; --ink-3:#86868b;
+    --sep:#e3e3e6; --sep-soft:rgba(0,0,0,.07); --blue:#0071e3; --blue-hover:#0077ed;
+    --green:#1d8a3f; --green-bg:#eaf7ee; --red:#d70015; --red-bg:#ffeceb; --amber-bg:#fff8e6; --amber:#9a6a00;
+    --r:14px; --font:"SF Pro Text",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:880px;margin:0 auto;padding:0 20px}
+  a{color:#06c;text-decoration:none}
+
+  header{position:sticky;top:0;z-index:10;background:rgba(255,255,255,.8);backdrop-filter:saturate(180%) blur(20px);
+    border-bottom:1px solid var(--sep-soft)}
+  header .wrap{display:flex;align-items:center;gap:14px;height:56px}
+  header h1{font-size:17px;font-weight:600;letter-spacing:-.01em}
+  header .sp{flex:1}
+  .pill{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 14px;border:1px solid var(--sep);
+    border-radius:980px;background:#fff;font:inherit;font-size:14px;font-weight:500;cursor:pointer;color:var(--ink)}
+  .pill:hover{border-color:#c7c7cc}
+  .pill.solid{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .pill.solid:hover{background:var(--blue-hover)}
+  .meta{color:var(--ink-2);font-size:13.5px}
+
+  h2{font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);margin:28px 0 12px}
+  .card{background:var(--card);border:1px solid var(--sep-soft);border-radius:var(--r);padding:18px 20px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+  .card.auto{border-left:3px solid #f0c040}
+  .row{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:flex-end;margin-top:12px}
+  .f{display:flex;flex-direction:column;gap:4px}
+  .f label{font-size:11px;font-weight:600;color:var(--ink-3);letter-spacing:.02em;text-transform:uppercase}
+  .f input,.f select{height:34px;border:1px solid var(--sep);border-radius:9px;background:#fff;padding:0 10px;font:inherit;font-size:14px;color:var(--ink)}
+  .f input:focus,.f select:focus{outline:2px solid #bcdcff;border-color:var(--blue)}
+  .f.name input{min-width:340px;font-weight:600;font-size:15px}
+  .f.sm input{width:120px}
+  .badge{display:inline-block;font-size:11px;font-weight:600;color:var(--amber);background:var(--amber-bg);border-radius:6px;padding:2px 7px;margin-left:8px;vertical-align:middle}
+  .src{font-size:12.5px;color:var(--ink-3);margin-top:10px}
+  .agechips{display:flex;gap:6px;flex-wrap:wrap}
+  .age{height:30px;padding:0 11px;border:1px solid var(--sep);border-radius:980px;background:#fff;font:inherit;font-size:13px;cursor:pointer;color:var(--ink-2)}
+  .age.on{background:#eaf3ff;color:var(--blue);border-color:#bcdcff}
+  .actions{display:flex;gap:10px;margin-top:16px}
+  .approve{height:38px;padding:0 20px;border:0;border-radius:980px;background:var(--green);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+  .approve:hover{filter:brightness(1.05)}
+  .reject{height:38px;padding:0 16px;border:1px solid var(--sep);border-radius:980px;background:#fff;color:var(--red);font:inherit;font-weight:500;cursor:pointer}
+  .reject:hover{background:var(--red-bg);border-color:var(--red-bg)}
+  .err{color:var(--red);font-size:13px;margin-top:8px;display:none}
+  .empty{color:var(--ink-2);padding:30px 0;text-align:center}
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:980px;font-size:14px;font-weight:500;opacity:0;transition:opacity .25s;pointer-events:none}
+  #toast.on{opacity:1}
+  details.known summary{cursor:pointer;color:var(--ink-2);font-size:14px;padding:6px 0}
+  .known .card{opacity:.62}
+</style>
+</head>
+<body>
+<header><div class="wrap">
+  <h1>Kuratierung</h1>
+  <span class="meta" id="counts"></span>
+  <span class="sp"></span>
+  <button class="pill" id="liveBtn">Live-Feeds holen</button>
+  <a class="pill" href="/" onclick="location.reload();return false;">Neu laden</a>
+  <a class="pill solid" href="../dist/index.html" target="_blank">Website ansehen</a>
+</div></header>
+
+<main class="wrap">
+  <div id="loading" class="empty">Lade Kandidaten…</div>
+  <h2 id="newHead" style="display:none">Neue Kandidaten</h2>
+  <div id="newList"></div>
+  <details class="known" id="knownWrap" style="display:none">
+    <summary id="knownSummary"></summary>
+    <div id="knownList"></div>
+  </details>
+</main>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+var SCHEMA=null, LIVE=new URLSearchParams(location.search).get("live")==="1";
+var SELECTS=["kind","variant","time_control","participation","schedule_format","region","status"];
+var LABEL={kind:"Art",variant:"Variante",time_control:"Bedenkzeit",participation:"Einzel/Team",schedule_format:"Format",region:"Region",status:"Status"};
+
+function toast(msg){var t=document.getElementById("toast");t.textContent=msg;t.classList.add("on");setTimeout(function(){t.classList.remove("on");},1800);}
+function el(t,c){var e=document.createElement(t);if(c)e.className=c;return e;}
+function opt(v,sel){var o=document.createElement("option");o.value=v;o.textContent=v;if(v===sel)o.selected=true;return o;}
+
+function field(labelTxt,input){var f=el("div","f");var l=el("label");l.textContent=labelTxt;f.appendChild(l);f.appendChild(input);return f;}
+function selectFor(axis,val){var s=document.createElement("select");s.dataset.k=axis;SCHEMA[axis].forEach(function(v){s.appendChild(opt(v,val));});return s;}
+function textInput(key,val,cls){var i=document.createElement("input");i.dataset.k=key;i.value=val==null?"":val;if(cls)i.className=cls;return i;}
+
+function buildCard(d,isNew){
+  var card=el("article","card"+(d.tagged_by==="auto"?" auto":""));
+  // name + edition + auto badge
+  var top=el("div","row");
+  var nameF=field("Name", textInput("name",d.name)); nameF.className="f name";
+  top.appendChild(nameF);
+  top.appendChild(field("Auflage", (function(){var i=textInput("edition",d.edition||"");i.type="number";i.style.width="80px";return i;})()));
+  card.appendChild(top);
+  if(d.tagged_by==="auto"){var b=el("span","badge");b.textContent="auto-getaggt · bitte prüfen";nameF.querySelector("label").appendChild(b);}
+
+  // dates
+  var r1=el("div","row");
+  r1.appendChild(field("Start", (function(){var i=textInput("start_date",d.start_date);i.className="";i.style.width="130px";return i;})()));
+  r1.appendChild(field("Ende", (function(){var i=textInput("end_date",d.end_date);i.style.width="130px";return i;})()));
+  card.appendChild(r1);
+
+  // the six axes + kind/region/status
+  var r2=el("div","row");
+  SELECTS.forEach(function(ax){ r2.appendChild(field(LABEL[ax], selectFor(ax,d[ax]))); });
+  card.appendChild(r2);
+
+  // age chips
+  var ageWrap=el("div","f");var al=el("label");al.textContent="Alter";ageWrap.appendChild(al);
+  var chips=el("div","agechips");
+  SCHEMA.age.forEach(function(a){
+    var c=el("button","age"+((d.age_limit||["open"]).indexOf(a)>-1?" on":""));c.type="button";c.textContent=a;c.dataset.age=a;
+    c.onclick=function(){c.classList.toggle("on");};chips.appendChild(c);
+  });
+  ageWrap.appendChild(chips);
+  var r3=el("div","row");r3.appendChild(ageWrap);card.appendChild(r3);
+
+  // optional extras
+  var r4=el("div","row");
+  r4.appendChild(field("Veranstalter", (function(){var i=textInput("organizer",d.organizer);i.style.minWidth="200px";return i;})()));
+  r4.appendChild(field("Ort", textInput("venue",d.venue)));
+  r4.appendChild(field("Preisfonds €", (function(){var i=textInput("prize",(d.prize_pool&&d.prize_pool.amount)||"");i.type="number";i.style.width="120px";return i;})()));
+  card.appendChild(r4);
+
+  var src=el("div","src");src.textContent="Quellen: "+(d.sources||[]).join(", ")+(d.source_url?"  ·  ":"");
+  if(d.source_url){var a=el("a");a.href=d.source_url;a.target="_blank";a.textContent="Ausschreibung";src.appendChild(a);}
+  card.appendChild(src);
+
+  var err=el("div","err");card.appendChild(err);
+
+  if(isNew){
+    var actions=el("div","actions");
+    var ap=el("button","approve");ap.textContent="Übernehmen";ap.onclick=function(){approve(card,d,err,ap);};
+    var rj=el("button","reject");rj.textContent="Verwerfen";rj.onclick=function(){reject(card,d);};
+    actions.appendChild(ap);actions.appendChild(rj);card.appendChild(actions);
+  }
+  return card;
+}
+
+function collect(card,d){
+  var rec={age_limit:[],sources:d.sources,last_verified:d.last_verified,tagged_by:"human"};
+  card.querySelectorAll("[data-k]").forEach(function(inp){
+    var k=inp.dataset.k,v=inp.value.trim();
+    if(k==="edition"){ if(v)rec.edition=parseInt(v,10); return; }
+    if(k==="prize"){ if(v)rec.prize_pool={amount:parseInt(v,10),currency:"EUR"}; return; }
+    if(v==="") { if(["organizer","venue"].indexOf(k)>-1) return; }
+    rec[k]=v;
+  });
+  card.querySelectorAll(".age.on").forEach(function(c){rec.age_limit.push(c.dataset.age);});
+  if(!rec.age_limit.length)rec.age_limit=["open"];
+  if(d.id)rec.id=rec.id||d.id;
+  if(d.source_url)rec.source_url=d.source_url;
+  if(d.registration_url)rec.registration_url=d.registration_url;
+  // recompute id from name+year so edits to the name reflow the slug
+  return rec;
+}
+
+function approve(card,d,err,btn){
+  err.style.display="none";btn.disabled=true;btn.textContent="…";
+  var rec=collect(card,d);
+  fetch("/api/approve",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(rec)})
+   .then(function(r){return r.json();})
+   .then(function(j){
+     if(!j.ok){err.textContent=j.error||"Fehler";err.style.display="block";btn.disabled=false;btn.textContent="Übernehmen";return;}
+     card.style.transition="opacity .25s";card.style.opacity="0";
+     setTimeout(function(){card.remove();updateCounts();},250);
+     toast("Übernommen → "+j.id+" (jetzt "+j.total+" Turniere)");
+   }).catch(function(e){err.textContent=String(e);err.style.display="block";btn.disabled=false;btn.textContent="Übernehmen";});
+}
+
+function reject(card,d){
+  fetch("/api/reject",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({key:d._key})})
+   .then(function(r){return r.json();}).then(function(){
+     card.style.transition="opacity .25s";card.style.opacity="0";
+     setTimeout(function(){card.remove();updateCounts();},250);
+     toast("Verworfen · künftig ausgeblendet");
+   });
+}
+
+var STATE={new:0};
+function updateCounts(){
+  var n=document.querySelectorAll("#newList .card").length;
+  document.getElementById("counts").textContent=n+" neu · "+STATE.existing+" erfasst"+(LIVE?" · live":" · Fixtures");
+  if(n===0){document.getElementById("newHead").style.display="none";if(!document.getElementById("newList").dataset.done){document.getElementById("newList").innerHTML='<div class="empty">Keine neuen Kandidaten. Alles erfasst. 🎉</div>';document.getElementById("newList").dataset.done="1";}}
+}
+
+function load(){
+  Promise.all([fetch("/api/schema").then(function(r){return r.json();}),
+               fetch("/api/candidates"+(LIVE?"?live=1":"")).then(function(r){return r.json();})])
+   .then(function(res){
+     SCHEMA=res[0];var data=res[1];STATE.existing=data.existing;
+     document.getElementById("loading").style.display="none";
+     var nl=document.getElementById("newList");
+     if(data.new.length){document.getElementById("newHead").style.display="";data.new.forEach(function(d){nl.appendChild(buildCard(d,true));});}
+     else{nl.innerHTML='<div class="empty">Keine neuen Kandidaten. Alles erfasst. 🎉</div>';}
+     if(data.known.length){
+       document.getElementById("knownWrap").style.display="";
+       document.getElementById("knownSummary").textContent=data.known.length+" bereits erfasste Kandidaten anzeigen";
+       data.known.forEach(function(d){document.getElementById("knownList").appendChild(buildCard(d,false));});
+     }
+     updateCounts();
+   }).catch(function(e){document.getElementById("loading").textContent="Fehler beim Laden: "+e;});
+}
+document.getElementById("liveBtn").onclick=function(){location.search="?live=1";};
+load();
+</script>
+</body>
+</html>
