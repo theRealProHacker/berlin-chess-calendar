@@ -1,0 +1,50 @@
+[
+  {
+    "id": 33480,
+    "date": "2026-05-06T14:39:00",
+    "title": { "rendered": "Jugend-Elo-Rapid &#8211; U20 &#8211; am 11. Juli 2026" },
+    "excerpt": { "rendered": "<p>Der n&auml;chste Jugend-Elo-Rapid f&uuml;r U20 findet am 11. Juli 2026 von 10:00 bis ca. 16:00 Uhr statt.</p>" },
+    "link": "https://www.schachjugend-in-berlin.de/jugend-elo-rapid-u20-am-11-juli-2026/",
+    "categories": [1, 24, 49, 38]
+  },
+  {
+    "id": 31002,
+    "date": "2025-11-10T09:00:00",
+    "title": { "rendered": "Regionales Kinderschachturnier U8 vom 13. bis 15. Februar 2026 &#8211; noch 13 Pl&auml;tze frei" },
+    "excerpt": { "rendered": "<p>Das RKST U8 findet vom 13. bis 15. Februar 2026 in Berlin statt.</p>" },
+    "link": "https://www.schachjugend-in-berlin.de/regionales-kinderschachturnier-u8-februar-2026/",
+    "categories": [1, 40, 24, 38]
+  },
+  {
+    "id": 33100,
+    "date": "2026-05-01T08:00:00",
+    "title": { "rendered": "28. Abrafaxe-Kinderschachturnier 2026" },
+    "excerpt": { "rendered": "<p>Das 28. Abrafaxe-Kinderschachturnier findet am 6. Juni 2026 statt.</p>" },
+    "link": "https://www.schachjugend-in-berlin.de/28-abrafaxe-kinderschachturnier-2026/",
+    "categories": [24]
+  },
+  {
+    "id": 28010,
+    "date": "2025-04-08T12:00:00",
+    "title": { "rendered": "9. Kreuzberger Kinder-Sommer-Turnier vom 23. bis 25. Juli" },
+    "excerpt": { "rendered": "<p>Das 9. Kreuzberger Kinder-Sommer-Turnier l&auml;dt vom 23. bis 25. Juli ein.</p>" },
+    "link": "https://www.schachjugend-in-berlin.de/9-kreuzberger-kinder-sommer-turnier/",
+    "categories": [1, 50, 37, 38]
+  },
+  {
+    "id": 27500,
+    "date": "2025-09-28T17:00:00",
+    "title": { "rendered": "Elo-Blitzturnier U18 am Sa., 11. Oktober 2025" },
+    "excerpt": { "rendered": "<p>Elo-Blitzturnier f&uuml;r U18 am Sa., 11. Oktober 2025.</p>" },
+    "link": "https://www.schachjugend-in-berlin.de/elo-blitzturnier-u18-oktober-2025/",
+    "categories": [1, 24, 38]
+  },
+  {
+    "id": 32999,
+    "date": "2026-04-27T10:00:00",
+    "title": { "rendered": "10 oder Null &#8211; 4er-DWZ-Turnier bei Ca&iuml;ssa" },
+    "excerpt": { "rendered": "<p>Ein laufendes Viererturnier bei Ca&iuml;ssa, ohne festen Termin.</p>" },
+    "link": "https://www.schachjugend-in-berlin.de/10-oder-null-caissa/",
+    "categories": [24]
+  }
+]
