@@ -348,7 +348,7 @@ window.TOURNAMENTS = __DATA__;
 
   function roundsLine(t){
     if(t.schedule_format==="block") return "";
-    var span=ddmm(t.start_date).slice(0,-1)+" – "+ddmm(t.end_date).slice(0,-1)+t.end_date.split("-")[0];
+    var span=ddmm(t.start_date)+" – "+ddmm(t.end_date)+t.end_date.split("-")[0];
     return '<div class="rounds">'+valLabel("format",t.schedule_format)+" · "+span+'</div>';
   }
 
