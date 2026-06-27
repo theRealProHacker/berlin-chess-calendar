@@ -97,6 +97,25 @@
     "last_verified": "2026-06-25"
   },
   {
+    "id": "jugend-elo-rapid-u20-2026",
+    "name": "Jugend-Elo-Rapid – U20",
+    "kind": "youth",
+    "start_date": "2026-07-11",
+    "end_date": "2026-07-11",
+    "variant": "standard",
+    "time_control": "rapid",
+    "age_limit": ["U20"],
+    "participation": "single",
+    "schedule_format": "block",
+    "region": "berlin",
+    "status": "confirmed",
+    "sources": ["sjib"],
+    "last_verified": "2026-06-27",
+    "tagged_by": "auto",
+    "city": "Berlin",
+    "source_url": "https://www.schachjugend-in-berlin.de/jugend-elo-rapid-u20-am-11-juli-2026/"
+  },
+  {
     "id": "kreuzberger-schachsommer-werner-ott-open-2026",
     "name": "Kreuzberger Schachsommer – Werner-Ott-Open 2026",
     "kind": "open",
