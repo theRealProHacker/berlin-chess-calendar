@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Berliner Schachkalender — Event-Modal (Design Preview)</title>
+<style>
+  :root{
+    --bg:#ffffff; --surface:#f5f5f7; --surface-2:#fbfbfd;
+    --ink:#1d1d1f; --ink-2:#6e6e73; --ink-3:#86868b;
+    --sep:#e3e3e6; --sep-soft:rgba(0,0,0,.06);
+    --blue:#0071e3; --blue-hover:#0077ed; --blue-tint:#eaf3ff; --blue-bd:#bcdcff; --link:#06c;
+    --green:#1d8a3f; --green-bg:#eaf7ee;
+    --amber:#9a6a00; --amber-line:#ecd9a8; --amber-bg:#fffaf0;
+    --red:#d70015;
+    --r-card:20px; --r-tile:14px; --r-pill:980px;
+    --shadow:0 1px 3px rgba(0,0,0,.04),0 8px 30px rgba(0,0,0,.05);
+    --shadow-h:0 12px 40px rgba(0,0,0,.10);
+    --shadow-modal:0 20px 60px rgba(0,0,0,.22);
+    --font:"SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  body{font-family:var(--font);color:var(--ink);background:var(--bg);line-height:1.5;font-size:17px;font-feature-settings:"tnum" 1}
+  a{color:var(--link);text-decoration:none}
+  .wrap{max-width:940px;margin:0 auto;padding:0 24px}
+  svg{display:block}
+
+  .nav{position:sticky;top:0;z-index:100;height:52px;background:rgba(255,255,255,.7);
+    backdrop-filter:saturate(180%) blur(20px);-webkit-backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid var(--sep-soft)}
+  .nav .wrap{height:100%;display:flex;align-items:center;justify-content:space-between}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:18px;letter-spacing:-.01em}
+  .brand .mk{width:24px;height:24px;border-radius:7px;background:var(--ink);color:#fff;display:grid;place-items:center;font-size:15px;line-height:1}
+  .tag{font-size:12px;font-weight:600;color:var(--ink-3);border:1px solid var(--sep);border-radius:var(--r-pill);padding:4px 11px}
+
+  .hero{text-align:center;padding:64px 0 28px}
+  .hero h1{font-size:clamp(34px,5vw,52px);line-height:1.05;font-weight:700;letter-spacing:-.03em}
+  .hero p{margin:16px auto 0;max-width:600px;font-size:19px;line-height:1.4;color:var(--ink-2);letter-spacing:-.01em}
+
+  .list{padding:14px 0 80px}
+  .month{font-size:13px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);margin:32px 0 14px;padding-left:4px}
+  .month:first-child{margin-top:14px}
+  .card{display:grid;grid-template-columns:84px 1fr auto;gap:24px;align-items:center;background:var(--surface-2);
+    border:1px solid var(--sep-soft);border-radius:var(--r-card);padding:24px 28px;margin-bottom:16px;
+    box-shadow:var(--shadow);transition:transform .2s ease,box-shadow .2s ease;cursor:pointer}
+  .card:hover{transform:translateY(-2px);box-shadow:var(--shadow-h)}
+  .card.expected{background:var(--amber-bg);border-style:dashed;border-color:var(--amber-line)}
+  .tile{width:84px;height:84px;border-radius:var(--r-tile);background:#fff;border:1px solid var(--sep-soft);display:grid;place-content:center;text-align:center;line-height:1}
+  .tile .mo{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--red)}
+  .tile .dy{font-size:30px;font-weight:600;letter-spacing:-.02em;margin-top:5px}
+  .tile .rg{font-size:12px;color:var(--ink-3);margin-top:3px}
+  .expected .tile .mo{color:var(--amber)}
+  .c-mid{min-width:0}
+  .c-name{font-size:19px;font-weight:600;letter-spacing:-.015em;line-height:1.25}
+  .c-meta{color:var(--ink-2);font-size:15px;margin-top:7px}
+  .c-meta b{color:var(--green);font-weight:600}
+  .c-meta .dl{color:var(--amber);font-weight:600}
+  .c-right{display:flex;flex-direction:column;align-items:flex-end;gap:11px;text-align:right}
+  .status{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;padding:6px 13px;border-radius:var(--r-pill);white-space:nowrap}
+  .status.c{color:var(--green);background:var(--green-bg)}
+  .status.e{color:var(--amber);background:#fff4dc}
+  .add{font-size:13.5px;color:var(--link);font-weight:500;white-space:nowrap}
+
+  /* ---- modal / sheet (shared with the filter sheet in the real site) ---- */
+  .scrim{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .25s ease}
+  .scrim.on{opacity:1;pointer-events:auto}
+  .sheet{position:fixed;z-index:201;background:#fff;box-shadow:var(--shadow-modal);display:flex;flex-direction:column;
+    left:50%;top:50%;width:540px;max-width:calc(100vw - 40px);max-height:82vh;border-radius:22px;
+    transform:translate(-50%,-46%) scale(.97);opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease}
+  .sheet.on{opacity:1;pointer-events:auto;transform:translate(-50%,-50%) scale(1)}
+  .sheet-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;padding:22px 24px 16px;border-bottom:1px solid var(--sep-soft)}
+  .sheet-head h2{font-size:21px;font-weight:600;letter-spacing:-.02em;line-height:1.25}
+  .sheet-x{flex:none;width:30px;height:30px;border:0;border-radius:50%;background:var(--surface);color:var(--ink-2);font-size:16px;cursor:pointer;font-family:inherit}
+  .sheet-x:hover{background:#ececef;color:var(--ink)}
+  .sheet-body{overflow:auto;padding:4px 24px 18px}
+
+  /* event detail: a calm, roomy header (date row · format · organizer) + bullet-less links */
+  .ev-top{padding:16px 0 6px}
+  .ev-deadline{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;color:var(--amber);
+    background:var(--amber-bg);border:1px solid var(--amber-line);padding:5px 12px;border-radius:var(--r-pill);margin-bottom:14px}
+  .ev-daterow{display:flex;align-items:center;justify-content:space-between;gap:14px}
+  .ev-date{font-size:17px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+  .ev-meta{color:var(--ink-2);font-size:15.5px;margin-top:11px}
+  .ev-meta .dl{color:var(--amber);font-weight:600}
+  .ev-sub{color:var(--ink-2);font-size:15px;margin-top:4px}
+  .ev-sub b{color:var(--green);font-weight:600}
+
+  .elinks{list-style:none;margin-top:10px}
+  .elinks li{border-top:1px solid var(--sep-soft)}
+  .elinks li:first-child{border-top:0}
+  .elink{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 2px;
+    font-size:16.5px;font-weight:500;color:var(--link);letter-spacing:-.01em;transition:color .12s}
+  a.elink:hover{color:var(--blue-hover)}
+  .elink .rt{display:inline-flex;align-items:center;gap:10px;color:var(--ink-3)}
+  .elink .hint{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);
+    background:var(--surface);padding:3px 8px;border-radius:6px}
+  .elink .ext{width:17px;height:17px;stroke:currentColor;opacity:.85}
+  .elink.text{color:var(--ink);cursor:default}
+  .elink.text .val{color:var(--ink-2);font-weight:400;font-size:15.5px;text-align:right}
+  .elinks .empty{padding:18px 2px;color:var(--ink-3);font-size:15px}
+
+  @media(max-width:680px){
+    body{font-size:16px}
+    .card{grid-template-columns:64px 1fr;gap:16px;padding:18px}
+    .c-right{grid-column:2;flex-direction:row;align-items:center;justify-content:flex-start;gap:14px;margin-top:2px}
+    .tile{width:64px;height:64px} .tile .dy{font-size:24px}
+    .sheet{left:0;top:auto;bottom:0;transform:translateY(20px);width:100%;max-width:100%;max-height:88vh;border-radius:22px 22px 0 0}
+    .sheet.on{transform:translateY(0)}
+    .sheet::before{content:"";position:absolute;top:9px;left:50%;transform:translateX(-50%);width:40px;height:5px;border-radius:3px;background:#d8d8dc}
+    .sheet-head{padding-top:26px}
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav"><div class="wrap">
+  <div class="brand"><span class="mk">&#9822;</span> Berliner Schachkalender</div>
+  <span class="tag">Design-Preview · Event-Modal</span>
+</div></nav>
+
+<header class="hero"><div class="wrap">
+  <h1>Tippe ein Turnier an.</h1>
+  <p>Klick auf eine Karte öffnet die Detail-Ansicht mit allen Links — Webseite, Anmeldung, Chess&#8209;Results und Ausschreibung.</p>
+</div></header>
+
+<main class="wrap list" id="list">
+  <div class="month">August 2026</div>
+
+  <article class="card" data-name="Kreuzberger Schachsommer – Werner-Ott-Open 2026"
+    data-date="01. – 09. August 2026" data-status="c" data-deadline="25. Juli 2026"
+    data-format="Open · Klassisch · 9 Runden Schweizer"
+    data-sub="SC Kreuzberg e.V. · <b>3.100 € Preisfonds</b>"
+    data-links='[
+      {"k":"website","url":"https://www.sck1924.de/"},
+      {"k":"registration","url":"https://chess.kreuzberger-schachsommer.de/anmeldung"},
+      {"k":"chess_results","url":"https://chess-results.com/tnr-werner-ott.aspx"},
+      {"k":"ausschreibung","url":"https://www.sck1924.de/ausschreibung-2026.pdf"}
+    ]'>
+    <div class="tile"><span class="mo">Aug</span><span class="dy">01</span><span class="rg">–09</span></div>
+    <div class="c-mid"><div class="c-name">Kreuzberger Schachsommer – Werner-Ott-Open</div>
+      <div class="c-meta">Open · Klassisch · 9 Runden Schweizer · <b>3.100 € Preisfonds</b></div></div>
+    <div class="c-right"><span class="status c">● Bestätigt</span><span class="add">Details</span></div>
+  </article>
+
+  <article class="card" data-name="22. Lichtenberger Sommer 2026"
+    data-date="08. – 16. August 2026" data-status="c" data-deadline="01. August 2026"
+    data-format="Open · Klassisch · 9 Runden Schweizer"
+    data-sub="SV Friesen Lichtenberg · <b>5.150 € Preisfonds</b>"
+    data-links='[
+      {"k":"website","url":"https://friesen-lichtenberg.de/lichtenberger-sommer/"},
+      {"k":"registration","url":"https://friesen-lichtenberg.de/anmeldung/"},
+      {"k":"chess_results","url":"https://chess-results.com/tnr-lichtenberger-sommer.aspx"},
+      {"k":"ausschreibung","url":"https://friesen-lichtenberg.de/ausschreibung.pdf"}
+    ]'>
+    <div class="tile"><span class="mo">Aug</span><span class="dy">08</span><span class="rg">–16</span></div>
+    <div class="c-mid"><div class="c-name">22. Lichtenberger Sommer 2026</div>
+      <div class="c-meta">Open · Klassisch · <b>5.150 € Preisfonds</b> · <span class="dl">Anmeldung bis 01.08.</span></div></div>
+    <div class="c-right"><span class="status c">● Bestätigt</span><span class="add">Details</span></div>
+  </article>
+
+  <div class="month">September 2026 — Saison 2026/27</div>
+
+  <article class="card" data-name="Berliner Mannschaftsmeisterschaft (BMM) 2026/27"
+    data-date="20.09.2026 – 25.04.2027" data-status="c"
+    data-format="Liga · Klassisch · Team · 9 Runden"
+    data-sub="Berliner Schachverband"
+    data-links='[
+      {"k":"website","url":"https://www.berlinerschachverband.de/bmm.html"},
+      {"k":"registration","text":"über den Verein"},
+      {"k":"chess_results","url":"https://chess-results.com/tnr-bmm.aspx"},
+      {"k":"ausschreibung","url":"https://www.berlinerschachverband.de/terminplan-2627.pdf"}
+    ]'>
+    <div class="tile"><span class="mo">Sep</span><span class="dy">20</span><span class="rg">bis Apr</span></div>
+    <div class="c-mid"><div class="c-name">Berliner Mannschaftsmeisterschaft (BMM)</div>
+      <div class="c-meta">Liga · Klassisch · Team · Berliner Schachverband</div></div>
+    <div class="c-right"><span class="status c">● Bestätigt</span><span class="add">Details</span></div>
+  </article>
+
+  <article class="card" data-name="Berliner Einzelmeisterschaft 2027"
+    data-date="04. – 11. Januar 2027" data-status="c"
+    data-format="Meisterschaft · Klassisch · Einzel"
+    data-sub="Berliner Schachverband"
+    data-links='[
+      {"k":"website","url":"https://www.berlinerschachverband.de/bem.html"},
+      {"k":"registration","text":"über Qualifikation"},
+      {"k":"ausschreibung","url":"https://www.berlinerschachverband.de/bem-2027.pdf"}
+    ]'>
+    <div class="tile"><span class="mo">Jan</span><span class="dy">04</span><span class="rg">–11</span></div>
+    <div class="c-mid"><div class="c-name">Berliner Einzelmeisterschaft 2027</div>
+      <div class="c-meta">Meisterschaft · Klassisch · Einzel · kein Chess-Results-Link</div></div>
+    <div class="c-right"><span class="status c">● Bestätigt</span><span class="add">Details</span></div>
+  </article>
+
+  <div class="month">Vorhersage · 2027</div>
+
+  <article class="card expected" data-name="grenke Chess Open 2027"
+    data-date="~ 25. – 29. März 2027" data-status="e"
+    data-format="Open · Klassisch · 9 Runden Schweizer"
+    data-sub="Karlsruhe · noch nicht ausgeschrieben"
+    data-links='[
+      {"k":"website","url":"https://www.grenkechessopen.de/"}
+    ]'>
+    <div class="tile"><span class="mo">Mär</span><span class="dy">~25</span><span class="rg">–29</span></div>
+    <div class="c-mid"><div class="c-name">grenke Chess Open 2027</div>
+      <div class="c-meta">Open · Klassisch · erwartet · noch nicht ausgeschrieben</div></div>
+    <div class="c-right"><span class="status e">◌ Erwartet</span><span class="add">Vormerken</span></div>
+  </article>
+</main>
+
+<!-- event detail modal -->
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="ev" role="dialog" aria-modal="true" aria-label="Turnierdetails">
+  <div class="sheet-head"><h2 id="evName"></h2><button class="sheet-x" id="evClose" aria-label="Schließen">&times;</button></div>
+  <div class="sheet-body">
+    <div class="ev-top">
+      <div class="ev-deadline" id="evDeadline"></div>
+      <div class="ev-daterow"><span class="ev-date" id="evWhen"></span><span id="evStatus"></span></div>
+      <div class="ev-meta" id="evMeta"></div>
+      <div class="ev-sub" id="evSub"></div>
+    </div>
+    <ul class="elinks" id="evLinks"></ul>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  // label + (optional) hint for each link kind, in display order
+  var LINKDEF = [
+    {k:"website",       label:"Webseite"},
+    {k:"registration",  label:"Anmeldung"},
+    {k:"chess_results", label:"Chess Results"},
+    {k:"ausschreibung", label:"Ausschreibung", hint:"PDF"}
+  ];
+  var EXT = '<svg class="ext" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg>';
+
+  var scrim=document.getElementById('scrim'), ev=document.getElementById('ev');
+  function open(){scrim.classList.add('on');ev.classList.add('on');}
+  function close(){scrim.classList.remove('on');ev.classList.remove('on');}
+
+  function rowFor(def, val){
+    // val: {url} -> link row;  {text} -> plain-text row (e.g. registration via Verein/Qualifikation)
+    if(val.url){
+      var right='<span class="rt">'+(def.hint?'<span class="hint">'+def.hint+'</span>':'')+EXT+'</span>';
+      return '<li><a class="elink" href="'+val.url+'" target="_blank" rel="noopener">'+
+             '<span class="lk">'+def.label+'</span>'+right+'</a></li>';
+    }
+    return '<li><div class="elink text"><span class="lk">'+def.label+'</span>'+
+           '<span class="val">'+val.text+'</span></div></li>';
+  }
+
+  function show(card){
+    document.getElementById('evName').textContent=card.dataset.name;
+    var dl=document.getElementById('evDeadline');
+    dl.textContent=card.dataset.deadline?('Anmeldung bis '+card.dataset.deadline):''; dl.style.display=card.dataset.deadline?'':'none';
+    document.getElementById('evWhen').textContent=card.dataset.date;
+    document.getElementById('evMeta').innerHTML=card.dataset.format;
+    var sub=document.getElementById('evSub'); sub.innerHTML=card.dataset.sub||''; sub.style.display=card.dataset.sub?'':'none';
+    var st=card.dataset.status;
+    document.getElementById('evStatus').innerHTML= st==='e'
+      ? '<span class="status e">◌ Erwartet</span>'
+      : '<span class="status c">● Bestätigt</span>';
+    var links={}; (JSON.parse(card.dataset.links||'[]')).forEach(function(l){links[l.k]=l;});
+    var html=''; LINKDEF.forEach(function(def){ if(links[def.k]) html+=rowFor(def,links[def.k]); });
+    document.getElementById('evLinks').innerHTML = html ||
+      '<li class="empty">Noch keine Links verfügbar.</li>';
+    open();
+  }
+
+  document.querySelectorAll('#list .card').forEach(function(c){ c.onclick=function(){show(c);}; });
+  document.getElementById('evClose').onclick=close;
+  scrim.onclick=close;
+  document.addEventListener('keydown',function(e){if(e.key==='Escape')close();});
+})();
+</script>
+</body>
+</html>

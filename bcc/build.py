@@ -29,8 +29,13 @@ AGE = {"open", "U8", "U10", "U12", "U14", "U16", "U18", "U20", "U25", "Ü60", "�
 REQUIRED = ["id", "name", "kind", "start_date", "end_date", "variant", "time_control",
             "age_limit", "participation", "schedule_format", "region", "status",
             "sources", "last_verified"]
+# Four event links (all optional). source_url = the event's webpage ("Webseite").
+# registration ("Anmeldung") is free text: a sign-up URL, or a phrase like "über den
+# Verein" / "über Qualifikation" for non-opens. chess_results_url / ausschreibung_url
+# (the PDF) are blank when they don't exist.
 OPTIONAL = {"name_en", "edition", "rounds", "organizer", "venue", "city", "source_url",
-            "registration_deadline", "registration_url", "prize_pool", "tagged_by", "notes"}
+            "registration_deadline", "registration", "chess_results_url", "ausschreibung_url",
+            "prize_pool", "tagged_by", "notes"}
 
 _ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -158,6 +163,13 @@ def _vevent(t):
         bits.append("erwartet, noch nicht bestätigt")
     loc = ", ".join(x for x in (t.get("venue"), t.get("city")) if x)
     status = {"confirmed": "CONFIRMED", "expected": "TENTATIVE", "cancelled": "CANCELLED"}.get(t["status"], "CONFIRMED")
+    # The four event links, labeled, appended to the description (registration may be a URL
+    # or a phrase like "über Qualifikation"). source_url also drives URL:, the PDF also ATTACH:.
+    links = [(lbl, t[f]) for lbl, f in (("Webseite", "source_url"), ("Anmeldung", "registration"),
+              ("Chess Results", "chess_results_url"), ("Ausschreibung", "ausschreibung_url")) if t.get(f)]
+    desc = " · ".join(bits)
+    if links:
+        desc += "\n\n" + "\n".join(f"{lbl}: {val}" for lbl, val in links)
     lines = [
         "BEGIN:VEVENT",
         f"UID:{t['id']}@berliner-schachkalender",
@@ -165,7 +177,7 @@ def _vevent(t):
         f"DTSTART;VALUE=DATE:{t['start_date'].replace('-', '')}",
         f"DTEND;VALUE=DATE:{end.isoformat().replace('-', '')}",
         f"SUMMARY:{_esc(summary)}",
-        f"DESCRIPTION:{_esc(' · '.join(bits))}",
+        f"DESCRIPTION:{_esc(desc)}",
         f"STATUS:{status}",
         f"CATEGORIES:{_esc(','.join([t['kind'], t['variant'], t['time_control'], t['participation']]))}",
         "TRANSP:TRANSPARENT",
@@ -174,6 +186,8 @@ def _vevent(t):
         lines.append(f"LOCATION:{_esc(loc)}")
     if t.get("source_url"):
         lines.append(f"URL:{t['source_url']}")
+    if t.get("ausschreibung_url"):
+        lines.append(f"ATTACH:{t['ausschreibung_url']}")
     lines.append("END:VEVENT")
     return lines
 

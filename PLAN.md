@@ -88,9 +88,11 @@ DSB feed; predicted lead-time + Berlin-filtered iCal is an open lane.
   "city": "Berlin",
   "status": "confirmed",            // confirmed|expected|stale|cancelled
   "sources": ["dsb-berlin","bsv-termin"],
-  "source_url": "https://www.schachbund.de/turnierdetails/...",
+  "source_url": "https://www.schachbund.de/turnierdetails/...",   // Webseite
   "registration_deadline": null,    // best-effort
-  "registration_url": null,         // best-effort
+  "registration": null,             // Anmeldung: sign-up URL, or "über den Verein"/"über Qualifikation"
+  "chess_results_url": null,        // blank if it doesn't exist
+  "ausschreibung_url": null,        // the Ausschreibung PDF
   "prize_pool": { "amount": 3100, "currency": "EUR" },  // hand-entered; stable year-to-year
 
   // curation metadata

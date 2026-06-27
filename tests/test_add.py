@@ -170,10 +170,10 @@ class TestSet(AddCase):
 
     def test_json_first_value_parsing(self):
         # bare number -> int (edition is int); URL with '=' / '&' -> string (json parse fails)
-        add.cmd_set("a-open-2026", ["edition=22", "registration_url=https://x.de/?a=1&b=2"])
+        add.cmd_set("a-open-2026", ["edition=22", "registration=https://x.de/?a=1&b=2"])
         rec = next(r for r in self._load() if r["id"] == "a-open-2026")
         self.assertEqual(rec["edition"], 22)
-        self.assertEqual(rec["registration_url"], "https://x.de/?a=1&b=2")
+        self.assertEqual(rec["registration"], "https://x.de/?a=1&b=2")
 
     def test_id_not_found(self):
         with self.assertRaises(SystemExit):

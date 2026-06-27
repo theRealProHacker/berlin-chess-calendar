@@ -28,7 +28,7 @@ Promote it (keep the same `id`/UID so subscribers' calendars update in place):
 ```bash
 python -m bcc.add set <id> status=confirmed start_date=YYYY-MM-DD end_date=YYYY-MM-DD
 # add what the announcement exposes:
-# python -m bcc.add set <id> registration_url=https://... registration_deadline=YYYY-MM-DD
+# python -m bcc.add set <id> registration=https://... registration_deadline=YYYY-MM-DD
 # python -m bcc.add set <id> prize_pool='{"amount":5150,"currency":"EUR"}'
 ```
 

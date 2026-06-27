@@ -113,6 +113,31 @@
   .apply{flex:1;max-width:240px;height:46px;border:0;border-radius:var(--r-pill);background:var(--blue);color:#fff;font:inherit;font-size:16px;font-weight:500;cursor:pointer;letter-spacing:-.01em}
   .apply:hover{background:var(--blue-hover)}
 
+  /* ---- event detail modal (shares .sheet / .scrim) ---- */
+  #ev .sheet-head{align-items:flex-start}
+  #ev .sheet-head h2{line-height:1.25}
+  .ev-top{padding:14px 0 6px}
+  .ev-deadline{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;color:var(--amber);
+    background:var(--amber-bg);border:1px solid var(--amber-line);padding:5px 12px;border-radius:var(--r-pill);margin-bottom:14px}
+  .ev-daterow{display:flex;align-items:center;justify-content:space-between;gap:14px}
+  .ev-date{font-size:17px;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+  .ev-meta{color:var(--ink-2);font-size:15.5px;margin-top:11px}
+  .ev-sub{color:var(--ink-2);font-size:15px;margin-top:4px}
+  .ev-sub b{color:var(--green);font-weight:600}
+  .elinks{list-style:none;margin-top:12px}
+  .elinks li{border-top:1px solid var(--sep-soft)}
+  .elinks li:first-child{border-top:0}
+  .elink{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 2px;
+    font-size:16.5px;font-weight:500;color:var(--link);letter-spacing:-.01em;transition:color .12s}
+  a.elink:hover{color:var(--blue-hover)}
+  .elink .rt{display:inline-flex;align-items:center;gap:10px;color:var(--ink-3)}
+  .elink .hint{font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);
+    background:var(--surface);padding:3px 8px;border-radius:6px}
+  .elink .ext{width:17px;height:17px;stroke:currentColor;opacity:.85}
+  .elink.text{color:var(--ink);cursor:default}
+  .elink.text .val{color:var(--ink-2);font-weight:400;font-size:15.5px;text-align:right}
+  .elinks .empty{padding:18px 2px;color:var(--ink-3);font-size:15px}
+
   footer{border-top:1px solid var(--sep-soft);background:var(--surface);padding:40px 0;color:var(--ink-3);font-size:13px}
   footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px}
 
@@ -176,6 +201,19 @@
   <div class="sheet-foot"><button class="reset" id="resetFilter">Zurücksetzen</button><button class="apply" id="applyFilter">Anwenden</button></div>
 </div>
 
+<div class="sheet ev" id="ev" role="dialog" aria-modal="true" aria-label="Turnierdetails">
+  <div class="sheet-head"><h2 id="evName"></h2><button class="sheet-x" id="evClose" aria-label="Close">&times;</button></div>
+  <div class="sheet-body">
+    <div class="ev-top">
+      <div class="ev-deadline" id="evDeadline"></div>
+      <div class="ev-daterow"><span class="ev-date" id="evWhen"></span><span id="evStatus"></span></div>
+      <div class="ev-meta" id="evMeta"></div>
+      <div class="ev-sub" id="evSub"></div>
+    </div>
+    <ul class="elinks" id="evLinks"></ul>
+  </div>
+</div>
+
 <script>
 window.TOURNAMENTS = __DATA__;
 </script>
@@ -201,6 +239,7 @@ window.TOURNAMENTS = __DATA__;
       months:["Jan","Feb","März","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"],
       monthsFull:["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
       bis:"bis", prize:"Preisfonds", deadline:"Anmeldung bis",
+      links:{website:"Webseite",registration:"Anmeldung",chess_results:"Chess Results",ausschreibung:"Ausschreibung"}, noLinks:"Noch keine Links verfügbar.",
       axisOrder:["region","variant","tc","age","part","format","org"],
       axis:{region:"Region",variant:"Variante",tc:"Bedenkzeit",age:"Alter",part:"Einzel / Team",format:"Format",org:"Veranstalter"},
       kind:{open:"Open",championship:"Meisterschaft",memorial:"Gedenkturnier",league:"Liga","club-series":"Vereinsserie",youth:"Jugend",festival:"Festival"},
@@ -226,6 +265,7 @@ window.TOURNAMENTS = __DATA__;
       months:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
       monthsFull:["January","February","March","April","May","June","July","August","September","October","November","December"],
       bis:"to", prize:"prize fund", deadline:"register by",
+      links:{website:"Website",registration:"Registration",chess_results:"Chess Results",ausschreibung:"Announcement"}, noLinks:"No links yet.",
       axisOrder:["region","variant","tc","age","part","format","org"],
       axis:{region:"Region",variant:"Variant",tc:"Time control",age:"Age",part:"Single / Team",format:"Format",org:"Organizer"},
       kind:{open:"Open",championship:"Championship",memorial:"Memorial",league:"League","club-series":"Club series",youth:"Youth",festival:"Festival"},
@@ -320,6 +360,52 @@ window.TOURNAMENTS = __DATA__;
 
   function nameOf(t){ return (lang==="en"&&t.name_en)?t.name_en:t.name; }
 
+  // ---- event detail modal: header (deadline · date · format · organizer) + bullet-less links ----
+  var EXT='<svg class="ext" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg>';
+  function esc(s){return String(s).replace(/[&<>"]/g,function(ch){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[ch];});}
+  function longDate(iso){var p=iso.split("-");return parseInt(p[2],10)+". "+L.monthsFull[parseInt(p[1],10)-1]+" "+p[0];}
+  function evDateRange(t){
+    var s=t.start_date.split("-"), e=t.end_date.split("-"), pre=(t.status==="expected")?"~ ":"";
+    var dS=parseInt(s[2],10), dE=parseInt(e[2],10), mS=L.monthsFull[parseInt(s[1],10)-1], mE=L.monthsFull[parseInt(e[1],10)-1];
+    if(t.start_date===t.end_date) return pre+dS+". "+mS+" "+s[0];
+    if(s[0]===e[0]&&s[1]===e[1]) return pre+dS+". – "+dE+". "+mS+" "+s[0];
+    if(s[0]===e[0]) return pre+dS+". "+mS+" – "+dE+". "+mE+" "+s[0];
+    return pre+longDate(t.start_date)+" – "+longDate(t.end_date);
+  }
+  function linkRow(label,val,hint){
+    // a URL -> link row; any other text (e.g. "über Qualifikation") -> plain-text row
+    if(/^https?:\/\//i.test(val))
+      return '<li><a class="elink" href="'+esc(val)+'" target="_blank" rel="noopener"><span class="lk">'+label+
+             '</span><span class="rt">'+(hint?'<span class="hint">'+hint+'</span>':'')+EXT+'</span></a></li>';
+    return '<li><div class="elink text"><span class="lk">'+label+'</span><span class="val">'+esc(val)+'</span></div></li>';
+  }
+  function openEvent(t){
+    $("evName").textContent=nameOf(t);
+    var dl=$("evDeadline");
+    if(t.registration_deadline){ dl.textContent=L.deadline+" "+longDate(t.registration_deadline); dl.style.display=""; }
+    else dl.style.display="none";
+    $("evWhen").textContent=evDateRange(t);
+    var sc=t.status==="expected"?"e":"c", dot=t.status==="expected"?"◌":"●", txt=t.status==="expected"?L.expected:L.confirmed;
+    $("evStatus").innerHTML='<span class="status '+sc+'">'+dot+' '+txt+'</span>';
+    var bits=[valLabel("kind",t.kind)];
+    if(t.variant!=="standard") bits.push(valLabel("variant",t.variant));
+    bits.push(valLabel("tc",t.time_control));
+    if(t.participation!=="single") bits.push(valLabel("part",t.participation));
+    if(t.schedule_format!=="block") bits.push(valLabel("format",t.schedule_format));
+    $("evMeta").textContent=bits.join(" · ");
+    var sub=[], who=t.organizer||t.venue||t.city;
+    if(who) sub.push(esc(who));
+    if(t.prize_pool) sub.push('<b>'+fmtNum(t.prize_pool.amount)+' '+(t.prize_pool.currency==="EUR"?"€":t.prize_pool.currency)+' '+L.prize+'</b>');
+    var subEl=$("evSub"); subEl.innerHTML=sub.join(" · "); subEl.style.display=sub.length?"":"none";
+    var LL=L.links, rows="";
+    if(t.source_url) rows+=linkRow(LL.website,t.source_url);
+    if(t.registration) rows+=linkRow(LL.registration,t.registration);
+    if(t.chess_results_url) rows+=linkRow(LL.chess_results,t.chess_results_url);
+    if(t.ausschreibung_url) rows+=linkRow(LL.ausschreibung,t.ausschreibung_url,"PDF");
+    $("evLinks").innerHTML = rows || '<li class="empty">'+L.noLinks+'</li>';
+    $("scrim").classList.add("on"); $("ev").classList.add("on");
+  }
+
   function render(){
     var list=$("list");
     // clear everything except the empty node
@@ -334,11 +420,10 @@ window.TOURNAMENTS = __DATA__;
       var statusCls=t.status==="expected"?"e":"c";
       var dot=t.status==="expected"?"◌":"●";
       var statusTxt=t.status==="expected"?L.expected:L.confirmed;
-      var action=t.status==="expected"?L.remember:L.toCal;
       c.innerHTML = tile(t) +
         '<div class="c-mid"><div class="c-name">'+nameOf(t)+'</div><div class="c-meta">'+metaLine(t)+'</div>'+roundsLine(t)+'</div>'+
-        '<div class="c-right"><span class="status '+statusCls+'">'+dot+' '+statusTxt+'</span>'+
-        (t.source_url?'<a class="add" href="'+t.source_url+'" target="_blank" rel="noopener">'+action+'</a>':'<span class="add">'+action+'</span>')+'</div>';
+        '<div class="c-right"><span class="status '+statusCls+'">'+dot+' '+statusTxt+'</span></div>';
+      c.onclick=function(){ openEvent(t); };
       list.insertBefore(c,emptyNode);
     });
     $("count").textContent=items.length;
@@ -408,10 +493,12 @@ window.TOURNAMENTS = __DATA__;
   }
 
   // ---- wire up ----
+  function closeAll(){ closeModal(); $("ev").classList.remove("on"); }
   $("openFilter").onclick=openModal;
   $("closeFilter").onclick=closeModal;
-  $("scrim").onclick=closeModal;
-  document.addEventListener("keydown",function(e){if(e.key==="Escape")closeModal();});
+  $("evClose").onclick=closeAll;
+  $("scrim").onclick=closeAll;
+  document.addEventListener("keydown",function(e){if(e.key==="Escape")closeAll();});
   $("applyFilter").onclick=function(){ collectModal(); closeModal(); render(); };
   $("resetFilter").onclick=function(){ state={}; buildModal(); render(); };
   document.querySelectorAll("[data-lang]").forEach(function(b){ b.onclick=function(){setLang(b.dataset.lang);}; });
