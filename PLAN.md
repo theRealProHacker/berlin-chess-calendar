@@ -294,6 +294,12 @@ missing sources.
   The schema already carries `rounds: [dates]` (count is derivable), but it is not captured
   or shown for most records. Decide where it belongs: a data field to fill during curation,
   the list/`index.html` display, and/or the `.ics` description. Parked — note only for now.
+  - Canonical example (owner Ausschreibung, 2026-06-30): **10. Harald-Lieb-Gedenkturnier
+    (24. SKZ-Open)** is a 7-round Thursday-evening series, **21.05.–02.07.2026** (rounds 21.05,
+    28.05, 04.06, 11.06, 18.06, 25.06, 02.07; 19:00; Hans-Rosenthal-Haus, Berlin-Zehlendorf).
+  - **Data bug to fix with this:** `harald-lieb-gedenkturnier-2026` currently has start
+    `2026-07-02` (the last round only) and end `2026-09-11` (wrong) and `rounds: null` →
+    correct to start `2026-05-21`, end `2026-07-02`, and fill `rounds` with the 7 dates.
 - **Feedback channel** (parked 2026-06-30). Let visitors send feedback. Direction decided: a plain
   **link** in the footer, *not* an iframe embed — embedding pulls third-party scripts/cookies onto the
   page, which clashes with the no-tracking, dependencies-none ethos and the GitHub Pages static model.
