@@ -101,15 +101,28 @@ def norm_name(name):
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", s)).strip()
 
 
+def pick_enclosure(encs):
+    """The Ausschreibung PDF URL from an item's <enclosure>s, or None.
+
+    Items can carry several (a .docx and a .pdf of the same Ausschreibung); take the PDF —
+    that is what ausschreibung_url means. Feed enclosures are http://; upgrade to https:// to
+    match the site (and the feed's own <link>s, which are already https).
+    """
+    for e in encs:
+        url = e.get("url") or ""
+        if e.get("type") == "application/pdf" or url.lower().endswith(".pdf"):
+            return "https://" + url[len("http://"):] if url.startswith("http://") else url
+    return None
+
+
 def parse_feed(xml_text, source):
     out = []
     for it in ET.fromstring(xml_text).iter("item"):
         title = (it.findtext("title") or "").strip()
         start, end, name = parse_title(title)
-        enc = it.find("enclosure")
         out.append(Raw(source, name, start, end, parse_edition(name),
                        (it.findtext("link") or "").strip(), it.findtext("description") or "",
-                       enc.get("url") if enc is not None else None))
+                       pick_enclosure(it.findall("enclosure"))))
     return out
 
 
@@ -285,6 +298,9 @@ def draft(group, today):
     link = next((e.link for e in evs if e.link), None)
     if link:
         d["source_url"] = link
+    enc = next((e.enclosure for e in evs if e.enclosure), None)
+    if enc:
+        d["ausschreibung_url"] = enc
     if prizes:
         d["prize_pool"] = {"amount": max(prizes), "currency": "EUR"}
     return d

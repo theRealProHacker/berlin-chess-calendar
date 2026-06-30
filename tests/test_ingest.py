@@ -63,6 +63,20 @@ class TestGolden(unittest.TestCase):
         for g in self.groups:
             validate(ingest.draft(g, "2026-06-26"))  # every auto-draft passes the schema
 
+    def test_enclosure_pdf_into_ausschreibung_url(self):
+        # The Lasker item carries both a .docx and a .pdf enclosure; ausschreibung_url
+        # must be the PDF (https-upgraded), never the .docx.
+        g = next(g for g in self.groups if "Lasker" in g["evs"][0].name)
+        d = ingest.draft(g, "2026-06-26")
+        self.assertEqual(
+            d["ausschreibung_url"],
+            "https://www.berlinerschachverband.de/files/bsv/termine/2026/Ausschreibung_Barlinek_2026.pdf")
+
+    def test_no_enclosure_no_ausschreibung_url(self):
+        # An item with no enclosure (Tandemschach-Treffen) gets no ausschreibung_url key.
+        g = next(g for g in self.groups if "Tandemschach-Treffen" in g["evs"][0].name)
+        self.assertNotIn("ausschreibung_url", ingest.draft(g, "2026-06-26"))
+
 
 class TestYouthDate(unittest.TestCase):
     PUB = "2025-11-10"
