@@ -173,3 +173,56 @@ auto-increments `edition` from the last confirmed sighting.
 
 Performance: trivial scale (hundreds of events/year); static client-side filter over a small JSON is
 instant. The only perf discipline is politeness to sources (rate-limit + ETag cache).
+
+---
+
+## Coverage backlog — requested tournaments vs. data
+
+Owner brief (2026-06-30): the calendar should carry the events below. Audited against the
+18-record dataset on 2026-06-30. The six filter axes (variant · time control · age · single/duo/
+team · organizer · block/weekly/biweekly) **plus** region are all implemented and correct — this
+is a data-coverage gap, not a code gap. Add missing events through `bcc.add` (one verified source
+each), never a hand-paste, so the file keeps its canonical format and passes `validate()`.
+
+**In the calendar**
+- [x] Kreuzberger Sommer (Werner-Ott-Open)
+- [x] Lichtenberger Sommer (2026 + 2027 predicted)
+- [x] Weihnachtsturniere — Spandau Rapid / Blitz / A-Open / B-Open
+- [x] Harald-Lieb-Gedenkturnier (2026 + 2027 predicted)
+- [x] Grenke Chess Open (predicted)
+
+**Partial — extend**
+- [ ] All Berlin championships — have Schnellschach-EM + -MM (rapid). Missing: Berliner
+  Einzelmeisterschaft (classical), Blitzmeisterschaft, Blitz-MM.
+- [ ] All youth tournaments — only Jugend-Elo-Rapid U20 landed though the schachjugend WP source
+  runs. Add BJEM (U8–U18), Berliner Jugend-MM; investigate why so few youth events ingest.
+
+**Missing — add (one verified source each)**
+- [ ] U25 Turnier — https://u25chess.com/de/
+- [ ] Schachfreunde Berlin (club open)
+- [ ] Lichtenrader Herbst — ≠ Lichtenberger (Tempelhof-Schöneberg district)
+- [ ] Teschner-Gedenkturnier (Rudolf Teschner)
+- [ ] Offene Vereinsmeisterschaften (club opens)
+- [ ] Uckermünde (nearby)
+- [ ] Wittstock (nearby)
+- [ ] DSAM — Deutsche Amateurmeisterschaft, all regional editions (national)
+
+**Highest-leverage source gap.** The owner-named source — BSV → Aktuelles → "Aktuelle Links" — is
+NOT harvested. `ingest` pulls BSV Terminkalender RSS + DSB Berlin RSS + schachjugend WP only. That
+curated links page is where Lichtenrader Herbst, Teschner, U25 and the club championships most
+likely live — mine it (or hand-add from it) before chasing events one at a time.
+
+---
+
+## Backlog
+
+- **Feedback channel** (parked 2026-06-30). Let visitors send feedback. Direction decided: a plain
+  **link** in the footer, *not* an iframe embed — embedding pulls third-party scripts/cookies onto the
+  page, which clashes with the no-tracking, dependencies-none ethos and the GitHub Pages static model.
+  Two link-only options remain: (a) link out to a **Google Form** (owner creates it; structured
+  responses land in a Sheet; respondents go to a google.com page); or (b) a **`mailto:`** link (zero
+  third-party, but no structured data and the address gets scraped for spam). Rejected: Web3Forms /
+  Formspree (need an on-page form, not a link), and Netlify Forms (require Netlify hosting; we're on
+  GitHub Pages). **Blocked on**: owner to create the Google Form and hand over the share URL, or pick
+  mailto. **Also**: shipping any channel that collects personal data should come with a minimal
+  Impressum + Datenschutz line — the site has neither today.
