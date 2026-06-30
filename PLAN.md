@@ -9,6 +9,17 @@ shows tournaments *before* they're announced (annual recurrence) and ends in a s
 `.ics`. The wedge (confirmed by recon): the dominant competitor is a reactive skin over the
 DSB feed; predicted lead-time + Berlin-filtered iCal is an open lane.
 
+> **Build status (2026-06-30) — read before the design below.** The tool is three stdlib
+> modules: `bcc/build.py` (schema + `validate()` + static site + `.ics`), `bcc/ingest.py`
+> (DSB/BSV RSS + Schachjugend youth REST + the BSV "Aktuelle Links" hub harvester + dedup/draft),
+> and `bcc/add.py` (insert/set/skeleton editor). The "Data flow", "Modules", and "Build sequence"
+> sections below are the **original design** and have drifted from the code: the separate
+> `fetch/`, `normalize.py`, `dedup.py`, `noise.py`, `store.py`, `review/`, `emit/`, `serve.py`
+> were **consolidated into those three modules**, and the **prediction engine
+> (`recurring.yaml` + `predict.py` + promote-on-match) is NOT built** — the `status:expected`
+> records are hand-entered, and promotion is the manual `bcc.add set` / `check-announcements`
+> flow. The current automation-first plan is the **`/autoplan verdict`** section near the end.
+
 ---
 
 ## Locked decisions (this review)
@@ -214,8 +225,75 @@ likely live — mine it (or hand-add from it) before chasing events one at a tim
 
 ---
 
+## /autoplan verdict (2026-06-30) — automation-first re-plan
+
+Reviewed via /autoplan (CEO + Eng phases; Codex unavailable — both voices Claude, cross-checked).
+The owner brief above framed the gap as "hand-add ~8 events." **Owner direction at the gate
+overrode that:** maximize automation, build a system that runs yearly on its own, assert
+predictions as soon as events are announced, enter as little by hand as possible. Re-planned on
+that axis. The two reviewers' "stay manual, zero-ops" stance is explicitly overridden by owner
+context (minimize recurring manual labor > minimize code).
+
+### CORRECTION (2026-06-30, verified live)
+An earlier pass (and RECON line 96) called the BSV "Aktuelle Links" hub a *dead pointer-index, not
+events*. **That was wrong** — verified live with `bcc.ingest.http_get`: the hub is a curated
+`<div class="ce_text block">` of ~14 named tournament anchors → per-event pages that carry parseable
+dates (Berliner EM page = `01.07.2026`; U25 page = prose `7. Juni 2026`). It contains exactly the
+no-feed gaps: **Berliner EM (classical), Teschner-Gedenkturnier, Pokal-MM, Senioren-EM, Off.
+Spandauer 960-MM, Norddt. Blitz-MM, BMM/BFL**. So the hub is a real, reliable *discovery* source and
+is now the primary new auto-loader, integrated into `ingest.py`. (Date extraction is best-effort
+per page; ambiguous ones drop into the existing review queue, not hand-entry.)
+
+### Source reliability tiers (the "if reliably possible" gate)
+
+| Coverage gap | Best machine source | Reliable auto-load? | How |
+|---|---|---|---|
+| The season's key Berlin events incl. the no-feed ones (Teschner, Berliner EM classical, Pokal-MM, Senioren-EM, 960-MM, Norddt. Blitz-MM, BMM/BFL) | **BSV homepage "Aktuelle Links" block** | yes — discovery reliable, date best-effort | harvest the block's anchors (name + URL) → fetch each page → date via existing `parse_de_date` / DD.MM.YYYY; ambiguous date → review queue. Always captures `source_url` + Ausschreibung PDF. |
+| More Berlin opens / memorials | BSV `termine.html` full page | yes — low effort | same `parse_title` as the feed; uncaps the 12-item RSS. Reuse parser + `rejected.json` noise filter. |
+| Youth opens (RKST, Abrafaxe, Kinder-Sommer, Elo-Rapid/Blitz) | schachjugend WP `content.rendered` | yes — ~1 line | the parser already fetches the post body and discards it; feed `content.rendered` into `parse_de_date`. NB: U25 + Schachfreunde Berlin are already in the youth feed (dedup). |
+| Predict next year + confirm on announcement | `recurring.yaml` + `predict.py` + promote-on-match | build it | the predictive wedge; not built yet (the 3 `status:expected` rows are hand-typed today). |
+| Leagues round-by-round detail; DSAM | BMM/BFL pages (linked from the hub); DSAM via hub/news | medium | hub already yields the page URLs — more parseable than the fragile Terminplan PDF grid. |
+
+### Keystone the backlog missed: there is no prediction engine
+`recurring.yaml` and `predict.py` **do not exist** — the 3 `status:expected` 2027 rows are hand-typed.
+"Predictions asserted as soon as announced" *requires* building **predict.py + promote-on-match**.
+Still the wedge keystone — but now *complementary* to the hub harvester, not the workaround for
+missing sources.
+
+### Build sequence (revised, automation-first)
+1. **BSV "Aktuelle Links" hub harvester in `ingest.py`** — extract the block's tournament anchors →
+   fetch each event page → best-effort date → existing dedup/draft pipeline. Auto-discovers
+   Teschner, Berliner EM (classical), Pokal-MM, Senioren-EM, 960-MM, Norddt. Blitz-MM, BMM/BFL.
+2. **BSV `termine.html` full-page scrape** — uncaps the feed horizon (reuses `parse_title`).
+3. **Youth body parse** — feed `content.rendered` into `parse_de_date` + golden fixtures.
+4. **Prediction engine** — `recurring.yaml` + `predict.py` (slot→dates, edition++) +
+   **promote-on-match** (expected→confirmed on a feed sighting, same id).
+5. **Default region filter → Berlin** (`site/template.html`) — stop leaking Grenke (Karlsruhe),
+   Lasker (Polen), Spreewaldpokal (Brandenburg) into the default list + `.ics`.
+
+### Decision audit trail
+| # | Decision | Class | Principle | Rationale |
+|---|---|---|---|---|
+| 1 | Build the BSV "Aktuelle Links" hub harvester in `ingest.py` | owner-corrected (reverses earlier "don't build") | P1/P2 | VERIFIED the hub anchors are named events linking to dated pages; covers the no-feed gaps; owner directed pulling it into `ingest.py` |
+| 2 | DSAM / leagues / championships via the hub's per-event pages, not the PDF | mechanical | P3/P5 | hub links to BMM/BFL/Berliner EM pages (parseable) — better than the fragile Terminplan grid |
+| 3 | Build `predict.py` + promote-on-match (engine in scope) | owner directive | P1/P2 | the predictive wedge; doesn't exist today |
+| 4 | BSV `termine.html` scrape | mechanical (both voices) | P2 | reuses existing parser; lifts the full forward horizon the capped feed hides |
+| 5 | Youth `content.rendered` fix | mechanical (both voices) | P1/P2 | body already fetched + discarded; highest coverage-per-byte |
+| 6 | Default region filter → Berlin | owner-selected | P1 | verified leak of non-Berlin events into default list + .ics |
+| 7 | "Number of rounds" stays parked | owner directive | P4 | derive from `rounds` + wire the dead `runden` label; do NOT add a `round_count` scalar (DRY) |
+
+### Out of scope (separate plans)
+- Terminplan PDF auto-parser — fragile landscape grid; the hub's per-event pages replace it.
+- BSV news-feed NLP promotion — Phase 2 freshness signal.
+
+---
+
 ## Backlog
 
+- **Number of rounds** (from QA, 2026-06-30). Note/surface a tournament's round count.
+  The schema already carries `rounds: [dates]` (count is derivable), but it is not captured
+  or shown for most records. Decide where it belongs: a data field to fill during curation,
+  the list/`index.html` display, and/or the `.ics` description. Parked — note only for now.
 - **Feedback channel** (parked 2026-06-30). Let visitors send feedback. Direction decided: a plain
   **link** in the footer, *not* an iframe embed — embedding pulls third-party scripts/cookies onto the
   page, which clashes with the no-tracking, dependencies-none ethos and the GitHub Pages static model.

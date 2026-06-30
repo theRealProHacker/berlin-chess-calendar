@@ -30,7 +30,7 @@ German-first with an English toggle. Open data, open source, free static hosting
   filters, your subscription changes with it — the URL carries the query.
 - **Honest about provenance.** Every record cites its `sources` and `last_verified` date, and
   auto-guessed fields are flagged `tagged_by: auto` for a human to confirm.
-- **Tiny and durable.** Two ~400-line stdlib modules, a single HTML template, and a JSON file.
+- **Tiny and durable.** Three small stdlib modules, a single HTML template, and a JSON file.
   No framework to rot, nothing to keep patched.
 
 ## Event details & links
@@ -97,10 +97,11 @@ python3 -m bcc.add insert drafts.json   # validate + insert (sorted) into tourna
 python3 -m bcc.add set <id> status=confirmed start_date=YYYY-MM-DD end_date=YYYY-MM-DD
 ```
 
-- **`bcc.ingest`** pulls the Berlin feeds (DSB Turnierdatenbank + Berliner Schachverband, plus
-  the Schachjugend youth REST source), dedups against what's already in the file, and prints
-  the *new* tournaments as paste-ready JSON (auto-tagged `tagged_by: auto`). `--fixtures` runs
-  offline against the committed feed snapshots.
+- **`bcc.ingest`** pulls the Berlin feeds (DSB Turnierdatenbank + Berliner Schachverband, the
+  Schachjugend youth REST source, **and the BSV „Aktuelle Links" hub** — each hub anchor's event
+  page is fetched and dated, reading server-side JSON-LD where the date is rendered client-side),
+  dedups against what's already in the file, and prints the *new* tournaments as paste-ready JSON
+  (auto-tagged `tagged_by: auto`). `--fixtures` runs offline against the committed feed snapshots.
 - **`bcc.add`** is the deterministic editor: `skeleton` (fill-in template + enum vocab),
   `insert` (validate + sort), `set` (validated field update — corrections *and*
   prediction→confirmed promotions), `fmt` (re-normalize). Every write goes through
@@ -130,7 +131,6 @@ bcc/build.py            schema + validation + static-site/.ics builder   (python
 bcc/ingest.py           fetch Berlin feeds + dedup + draft records       (python3 -m bcc.ingest)
 bcc/add.py              deterministic insert/set/skeleton editor         (python3 -m bcc.add)
 site/template.html      the static site (HTML/CSS/vanilla JS, __DATA__ placeholder)
-design/                 design mockups (the event-modal preview)
 tests/                  unittest suite + real feed fixtures
 dist/                   build output (git-ignored; built and deployed in CI)
 PLAN.md, RECON-data-sources.md   architecture notes + data-source reconnaissance
