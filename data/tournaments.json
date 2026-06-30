@@ -74,9 +74,10 @@
     "region": "berlin",
     "status": "confirmed",
     "sources": ["bsv-termin"],
+    "source_url": "https://www.berlinerschachverband.de/termin/berliner-schnellschach-em-2026.html",
     "organizer": "Berliner Schachverband",
     "city": "Berlin",
-    "last_verified": "2026-06-25"
+    "last_verified": "2026-06-30"
   },
   {
     "id": "berliner-schnellschach-mm-2026",
@@ -92,9 +93,10 @@
     "region": "berlin",
     "status": "confirmed",
     "sources": ["bsv-termin"],
+    "source_url": "https://www.berlinerschachverband.de/termin/berliner-schnellschach-mm-2026.html",
     "organizer": "Berliner Schachverband",
     "city": "Berlin",
-    "last_verified": "2026-06-25"
+    "last_verified": "2026-06-30"
   },
   {
     "id": "jugend-elo-rapid-u20-2026",
@@ -113,7 +115,10 @@
     "last_verified": "2026-06-27",
     "tagged_by": "auto",
     "city": "Berlin",
-    "source_url": "https://www.schachjugend-in-berlin.de/jugend-elo-rapid-u20-am-11-juli-2026/"
+    "source_url": "https://www.schachjugend-in-berlin.de/jugend-elo-rapid-u20-am-11-juli-2026/",
+    "registration": "https://www.chessmanager.com/de-de/tournaments/6367715384229888/signup",
+    "chess_results_url": "https://chess-results.com/tnr1408274.aspx",
+    "ausschreibung_url": "https://www.schachclubkreuzberg.de/wp-content/uploads/Ausschreibung-Jugend-Schnellschach-Turnier.pdf"
   },
   {
     "id": "kreuzberger-schachsommer-werner-ott-open-2026",
@@ -158,7 +163,10 @@
     "city": "Berlin",
     "prize_pool": { "amount": 5150, "currency": "EUR" },
     "notes": "Open, 9 Runden Schweizer System.",
-    "last_verified": "2026-06-25"
+    "last_verified": "2026-06-27",
+    "registration": "per Überweisung des Startgeldes",
+    "chess_results_url": "https://chess-results.com/tnr1332749.aspx",
+    "ausschreibung_url": "https://friesen-lichtenberg.de/wp-content/uploads/friesen/liso-2026/ausschreibung-liso-2026.pdf"
   },
   {
     "id": "internationales-emanuel-lasker-schachfestival-2026",
@@ -175,9 +183,11 @@
     "region": "berlin",
     "status": "confirmed",
     "sources": ["bsv-termin"],
+    "source_url": "https://www.berlinerschachverband.de/termin/7-internationales-emanuel-lasker-schachfestival.html",
     "city": "Berlin",
-    "notes": "Start date approximate (29.08 per BSV calendar); festival span to confirm.",
-    "last_verified": "2026-06-25"
+    "notes": "Start date approximate (29.08 per BSV calendar); festival span to confirm. Ausgetragen in Barlinek (Polen).",
+    "ausschreibung_url": "https://www.berlinerschachverband.de/files/bsv/termine/2026/Ausschreibung_Barlinek_2026.pdf",
+    "last_verified": "2026-06-30"
   },
   {
     "id": "spreewaldpokal-2026",
@@ -193,9 +203,12 @@
     "region": "nearby",
     "status": "confirmed",
     "sources": ["bsv-termin"],
+    "source_url": "https://www.berlinerschachverband.de/termin/spreewaldpokal-2026.html",
     "city": "Brandenburg",
+    "venue": "Lübbenau",
     "notes": "Nearby (Brandenburg), travel-worthy for Berlin players.",
-    "last_verified": "2026-06-25"
+    "ausschreibung_url": "https://www.berlinerschachverband.de/files/bsv/termine/2026/Spreewaldpokal_2026_Ausschreibung.pdf",
+    "last_verified": "2026-06-30"
   },
   {
     "id": "berliner-mannschaftsmeisterschaft-2026-27",
@@ -331,6 +344,7 @@
     "region": "berlin",
     "status": "expected",
     "sources": ["recurring"],
+    "source_url": "https://skzehlendorf.de/turniere/harald-lieb-gedenkturnier/",
     "organizer": "SK Zehlendorf",
     "venue": "Berlin-Zehlendorf",
     "city": "Berlin",
@@ -352,6 +366,7 @@
     "region": "berlin",
     "status": "expected",
     "sources": ["recurring"],
+    "source_url": "https://friesen-lichtenberg.de/lichtenberger-sommer/",
     "organizer": "SV Friesen Lichtenberg",
     "venue": "Berlin-Karlshorst",
     "city": "Berlin",
