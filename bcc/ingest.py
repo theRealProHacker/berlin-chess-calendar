@@ -27,6 +27,7 @@ import re
 import sys
 import urllib.request
 import xml.etree.ElementTree as ET
+from urllib.parse import urljoin
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from pathlib import Path
@@ -39,6 +40,10 @@ SOURCES = {
     "dsb-berlin": "https://www.schachbund.de/share/feed-turnierdatenbank-berlin.xml",
     "bsv-termin": "https://www.berlinerschachverband.de/share/bsv-terminkalender.xml",
 }
+# The BSV homepage carries a curated "Aktuelle Links" block: named tournament anchors, each
+# pointing at a per-event page. It is the only source for the events that live on no feed
+# (Teschner, Berliner EM classical, Pokal-MM, Senioren-EM, 960-MM, BMM/BFL ...).
+BSV_HOME = "https://www.berlinerschachverband.de/"
 
 _TITLE = re.compile(
     r"^\s*(\d{2})\.(\d{2})\.(\d{4})"
@@ -250,6 +255,141 @@ def fetch_youth(fixtures=False, today=None, pages=3):
     return raws
 
 
+# ---- BSV "Aktuelle Links" hub (homepage) ------------------------------------
+# Discovery is reliable (the block is hand-curated named anchors); the per-event date lives on
+# the linked page and is best-effort. Events that don't auto-date are reported on stderr for
+# manual follow-up rather than guessed — discovery still surfaces them.
+_DMY = re.compile(r"\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b")
+_ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def strip_html(page):
+    """HTML -> collapsed plain text (drops <script>/<style> bodies first)."""
+    page = re.sub(r"<(script|style)\b[^>]*>.*?</\1>", " ", page, flags=re.I | re.S)
+    return re.sub(r"\s+", " ", html.unescape(_TAG.sub(" ", page))).strip()
+
+
+def extract_hub_links(home_html):
+    """The 'Aktuelle Links' block -> [(name, absolute_url)] tournament anchors.
+
+    Scoped to the heading's section (stops at the next <h2>). Drops the non-tournament entries:
+    the Terminplan PDFs and the Klassenberechtigungen page.
+    """
+    m = re.search(r"Aktuelle\s*Links", home_html, re.I)
+    if not m:
+        return []
+    seg = home_html[m.end():]
+    nxt = re.search(r"<h2\b", seg, re.I)
+    if nxt:
+        seg = seg[:nxt.start()]
+    out = []
+    for href, text in re.findall(r'<a\b[^>]*href="([^"]+)"[^>]*>(.*?)</a>', seg, re.I | re.S):
+        name = html.unescape(_TAG.sub(" ", text)).strip()
+        if not name or href.lower().endswith(".pdf") or "klassenberechtigung" in name.lower():
+            continue
+        out.append((name, urljoin(BSV_HOME, href)))
+    return out
+
+
+def hub_event_date(text, today):
+    """Best-effort (start, end) for an event page; (None, None) if nothing dated in the future.
+
+    Prose first (parse_de_date is anchored on 'am' / 'vom…bis' / an explicit year, so it rarely
+    false-matches), then numeric DD.MM.YYYY: earliest FUTURE date, end = latest within ~16 days.
+    """
+    today = today if isinstance(today, date) else date.fromisoformat(today)
+    s, e = parse_de_date(text, today.isoformat())
+    if s and s >= today.isoformat():
+        return s, e
+    fut = sorted(d for d in {date(int(y), int(mo), int(dd))
+                             for dd, mo, y in _DMY.findall(text) if _valid_dmy(dd, mo, y)}
+                 if d >= today)
+    if fut:
+        start = fut[0]
+        end = max((x for x in fut if 0 <= (x - start).days <= 16), default=start)
+        return start.isoformat(), end.isoformat()
+    return None, None
+
+
+def _valid_dmy(d, mo, y):
+    try:
+        date(int(y), int(mo), int(d))
+        return True
+    except ValueError:
+        return False
+
+
+def jsonld_event_dates(page):
+    """schema.org Event (start, end) from <script type=application/ld+json>; (None, None) if absent.
+
+    The reliable signal for JS-built tournament pages (chessmanager, schachevent): the date sits in
+    server-side structured data even when the visible HTML renders it client-side — so no headless
+    browser is needed. Handles a single object, a list, or an @graph; dates may be 'YYYY-MM-DD' or a
+    full ISO timestamp (sliced to the date).
+    """
+    for block in re.findall(r'<script[^>]*application/ld\+json[^>]*>(.*?)</script>', page, re.S | re.I):
+        try:
+            data = json.loads(block)
+        except Exception:
+            continue
+        stack = list(data) if isinstance(data, list) else [data]
+        while stack:
+            n = stack.pop()
+            if not isinstance(n, dict):
+                continue
+            stack.extend(n.get("@graph", []))
+            if "Event" in str(n.get("@type", "")) and n.get("startDate"):
+                s = str(n["startDate"])[:10]
+                e = str(n.get("endDate") or n["startDate"])[:10]
+                if _ISO_DATE.match(s) and _ISO_DATE.match(e):
+                    return s, e
+    return None, None
+
+
+def _meta_description(page):
+    """The <meta name=description> content (a common home for a German date range), or ''."""
+    m = (re.search(r'<meta[^>]+name=["\']description["\'][^>]+content=["\']([^"\']*)', page, re.I)
+         or re.search(r'<meta[^>]+content=["\']([^"\']*)["\'][^>]+name=["\']description', page, re.I))
+    return html.unescape(m.group(1)) if m else ""
+
+
+def fetch_hub(fixtures=False, today=None):
+    """Harvest the BSV 'Aktuelle Links' hub -> [Raw]. Each named anchor -> fetch its page -> date.
+
+    Fixtures mode is offline: link extraction is unit-tested directly against the captured block,
+    and there is no per-page network, so it returns []. Live mode fetches each event page and
+    keeps the ones it can date; undated ones are logged on stderr for manual follow-up.
+    """
+    today = today or datetime.now(timezone.utc).date()
+    today = today if isinstance(today, date) else date.fromisoformat(today)
+    if fixtures:
+        return []
+    links = extract_hub_links(http_get(BSV_HOME))
+    out, skipped = [], []
+    iso_today = today.isoformat()
+    for name, url in links:
+        try:
+            page = http_get(url)
+        except Exception:
+            skipped.append((name, url))
+            continue
+        start, end = jsonld_event_dates(page)              # structured data first (JS pages)
+        if not start:                                      # then the meta description + visible text
+            start, end = hub_event_date(_meta_description(page) + " " + strip_html(page), today)
+        if not start or end < iso_today:                   # undated, or a past edition (→ predictor's job)
+            skipped.append((name, url))
+            continue
+        desc = _meta_description(page)
+        out.append(Raw("bsv-hub", name, start, end, parse_edition(name), url, desc, None))
+    if links:
+        print(f"# hub: {len(links)} links -> {len(out)} dated, {len(skipped)} no upcoming date",
+              file=sys.stderr)
+    if skipped:
+        print("# hub: no upcoming date (past edition, or not machine-readable — check manually): "
+              + "; ".join(f"{n} <{u}>" for n, u in skipped), file=sys.stderr)
+    return out
+
+
 def dedup(events, window=3):
     """Group by normalized-name + start within `window` days. Returns merged groups."""
     groups = []
@@ -317,7 +457,13 @@ def main():
         youth = []
         print(f"# youth fetch failed: {e}", file=sys.stderr)
     events += youth
-    groups = dedup(events)                            # youth dedups against the spine for free
+    try:                                              # likewise a hub outage must not kill the run
+        hub = fetch_hub(fixtures, today)
+    except Exception as e:
+        hub = []
+        print(f"# hub fetch failed: {e}", file=sys.stderr)
+    events += hub
+    groups = dedup(events)                            # youth + hub dedup against the spine for free
 
     records = load()
     existing_ids = {r["id"] for r in records}
@@ -328,8 +474,8 @@ def main():
     drafts = [draft(g, today) for g in groups if g["nn"] not in rejected]
     new = [d for d in drafts
            if d["id"] not in existing_ids and norm_name(d["name"]) not in existing_norms]
-    print(f"# {n_rss} RSS + {len(youth)} youth -> {len(groups)} unique -> {len(new)} NEW "
-          f"(review/fix tags, then: python -m bcc.add insert <file>)\n", file=sys.stderr)
+    print(f"# {n_rss} RSS + {len(youth)} youth + {len(hub)} hub -> {len(groups)} unique -> "
+          f"{len(new)} NEW (review/fix tags, then: python -m bcc.add insert <file>)\n", file=sys.stderr)
     print(json.dumps(new, ensure_ascii=False, indent=2))
 
 

@@ -179,5 +179,92 @@ class TestYouthParse(unittest.TestCase):
                 self.assertIn("notes", d)
 
 
+class TestHubLinks(unittest.TestCase):
+    """The BSV 'Aktuelle Links' block -> named tournament anchors (golden fixture)."""
+
+    def setUp(self):
+        from bcc.build import ROOT
+        home = (ROOT / "tests" / "fixtures" / "bsv-home.html").read_text(encoding="utf-8")
+        self.links = ingest.extract_hub_links(home)
+        self.by_name = {n: u for n, u in self.links}
+
+    def test_drops_pdfs_and_non_tournaments(self):
+        names = " ".join(self.by_name)
+        self.assertNotIn("Terminplan", names)            # the .pdf links are dropped
+        self.assertNotIn("Klassenberechtigungen", names)
+        self.assertFalse(any(u.lower().endswith(".pdf") for u in self.by_name.values()))
+
+    def test_keeps_named_tournaments(self):
+        self.assertIn("Teschner-Gedenkturnier", self.by_name)   # a no-feed gap the hub uniquely covers
+        self.assertTrue(any("Berliner EM" in n for n in self.by_name))
+
+    def test_relative_url_made_absolute(self):
+        em = next(u for n, u in self.links if "Berliner EM" in n)
+        self.assertTrue(em.startswith("https://www.berlinerschachverband.de/"))
+
+    def test_external_url_preserved(self):
+        self.assertEqual(self.by_name["Teschner-Gedenkturnier"], "https://www.sglasker.de/teschner-2026/")
+
+
+class TestHubDate(unittest.TestCase):
+    TODAY = "2026-06-30"
+
+    def test_numeric_earliest_future(self):
+        # several dates on a page: the registration deadline (past) is skipped, event range wins
+        txt = "Runde 1 am 01.07.2026 ... Siegerehrung 02.07.2026 ... Anmeldung bis 16.06.2026"
+        self.assertEqual(ingest.hub_event_date(txt, self.TODAY), ("2026-07-01", "2026-07-02"))
+
+    def test_prose_with_year(self):
+        self.assertEqual(ingest.hub_event_date("Das Turnier findet am 7. Juni 2027 statt.", self.TODAY),
+                         ("2027-06-07", "2027-06-07"))
+
+    def test_past_only_returns_none(self):
+        self.assertEqual(ingest.hub_event_date("fand am 01.01.2020 statt", self.TODAY), (None, None))
+
+    def test_nothing_returns_none(self):
+        self.assertEqual(ingest.hub_event_date("keine Datumsangabe hier", self.TODAY), (None, None))
+
+
+class TestHubJsonLd(unittest.TestCase):
+    """schema.org Event dates from server-side JSON-LD — the fix for 'client-rendered' JS pages."""
+
+    def test_event_object(self):
+        page = ('x<script type="application/ld+json">'
+                '{"@type":"Event","startDate":"2026-08-01","endDate":"2026-08-09"}</script>y')
+        self.assertEqual(ingest.jsonld_event_dates(page), ("2026-08-01", "2026-08-09"))
+
+    def test_graph_and_iso_timestamp_no_end(self):
+        page = ('<script type="application/ld+json">{"@graph":[{"@type":"WebPage"},'
+                '{"@type":"Event","startDate":"2027-05-10T09:00:00+02:00"}]}</script>')
+        self.assertEqual(ingest.jsonld_event_dates(page), ("2027-05-10", "2027-05-10"))
+
+    def test_none_when_absent_or_not_event(self):
+        self.assertEqual(ingest.jsonld_event_dates("<html>no structured data</html>"), (None, None))
+        org = '<script type="application/ld+json">{"@type":"Organization","name":"x"}</script>'
+        self.assertEqual(ingest.jsonld_event_dates(org), (None, None))
+
+    def test_bad_json_ignored(self):
+        self.assertEqual(ingest.jsonld_event_dates('<script type="application/ld+json">{oops}</script>'),
+                         (None, None))
+
+    def test_meta_description(self):
+        page = '<meta name="description" content="1. bis 9. August 2026" />'
+        self.assertEqual(ingest._meta_description(page), "1. bis 9. August 2026")
+
+
+class TestHubDraft(unittest.TestCase):
+    def test_hub_raw_drafts_valid(self):
+        raw = ingest.Raw("bsv-hub", "Teschner-Gedenkturnier", "2026-11-07", "2026-11-08",
+                         None, "https://www.sglasker.de/teschner-2026/", "gedenkturnier", None)
+        d = ingest.draft(ingest.dedup([raw])[0], "2026-06-30")
+        validate(d)
+        self.assertEqual(d["kind"], "memorial")          # "gedenk" in name -> memorial
+        self.assertEqual(d["source_url"], "https://www.sglasker.de/teschner-2026/")
+        self.assertEqual(d["sources"], ["bsv-hub"])
+
+    def test_fetch_hub_fixtures_offline(self):
+        self.assertEqual(ingest.fetch_hub(fixtures=True), [])   # offline contract: no page fetches
+
+
 if __name__ == "__main__":
     unittest.main()
