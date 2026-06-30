@@ -180,11 +180,11 @@
     "age_limit": ["open"],
     "participation": "single",
     "schedule_format": "block",
-    "region": "berlin",
+    "region": "nearby",
     "status": "confirmed",
     "sources": ["bsv-termin"],
     "source_url": "https://www.berlinerschachverband.de/termin/7-internationales-emanuel-lasker-schachfestival.html",
-    "city": "Berlin",
+    "city": "Barlinek, Polen",
     "notes": "Start date approximate (29.08 per BSV calendar); festival span to confirm. Ausgetragen in Barlinek (Polen).",
     "ausschreibung_url": "https://www.berlinerschachverband.de/files/bsv/termine/2026/Ausschreibung_Barlinek_2026.pdf",
     "last_verified": "2026-06-30"
