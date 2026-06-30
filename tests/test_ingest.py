@@ -266,6 +266,37 @@ class TestHubDraft(unittest.TestCase):
         self.assertEqual(ingest.fetch_hub(fixtures=True), [])   # offline contract: no page fetches
 
 
+class TestYouthContentBody(unittest.TestCase):
+    """parse_youth reads content.rendered (the post body), not just title + excerpt."""
+
+    TODAY = "2026-06-30"
+
+    def _posts(self, **fields):
+        base = {"title": {"rendered": "Test"}, "excerpt": {"rendered": ""},
+                "content": {"rendered": ""}, "date": "2026-05-01", "categories": [38], "link": "x"}
+        base.update(fields)
+        return [base]
+
+    def test_date_only_in_body_now_parses(self):
+        raws = ingest.parse_youth(self._posts(
+            title={"rendered": "Schülerturnier"},
+            content={"rendered": "<p>Termin: am 5. August 2026 um 10 Uhr.</p>"}), self.TODAY)
+        self.assertEqual(len(raws), 1)
+        self.assertEqual((raws[0].start, raws[0].end), ("2026-08-05", "2026-08-05"))
+
+    def test_excerpt_date_wins_over_body(self):
+        # event date in the excerpt + an unrelated later date in the body -> excerpt wins (first match)
+        raws = ingest.parse_youth(self._posts(
+            title={"rendered": "Jugendopen"}, excerpt={"rendered": "am 11. Juli 2026"},
+            content={"rendered": "Anmeldung bis 1. August 2026"}), self.TODAY)
+        self.assertEqual(raws[0].start, "2026-07-11")
+
+    def test_body_without_date_still_dropped(self):
+        self.assertEqual(ingest.parse_youth(self._posts(
+            title={"rendered": "Vereinsabend"},
+            content={"rendered": "<p>Jeden Mittwoch im Vereinsheim.</p>"}), self.TODAY), [])
+
+
 class TestAbroadCity(unittest.TestCase):
     """draft() strips a Berlin city label (and flags) when the text names a foreign host country."""
 

@@ -6,7 +6,7 @@
 Three Berlin sources, all funneling into one dedup/draft pipeline:
   - DSB Berlin + BSV RSS (identical Contao RSS, one parser serves both)
   - schachjugend-in-berlin.de youth tournaments (WordPress REST; event dates are German
-    prose, not a structured field, so they are regex-parsed from the title/excerpt)
+    prose, not a structured field, so they are regex-parsed from the title, excerpt, and body)
 Anti-anti-bot UA + de-DE on every request. Output is a JSON array of NEW candidate records
 (auto-guessed, tagged_by=auto). Review them, fix the auto-guessed tags, then insert the ones
 you want via bcc.add so the file keeps its canonical format (NOT a hand-paste, which drifts
@@ -217,7 +217,10 @@ def clean_youth_name(name):
 def parse_youth(posts, today):
     """WP-REST posts (JSON string or list) -> [Raw]. Drops posts with no parseable FUTURE date.
 
-    source = "sjib" when the post is in category 38 (org's own tournament, reliably Berlin),
+    The event date is regex-parsed from title + excerpt + post body (content.rendered). Many youth
+    posts state the date only in the body; the WP API already returns it, so it is read here rather
+    than re-fetched. Title/excerpt come first, so an event date there wins over a later body date
+    (e.g. a registration deadline). source = "sjib" for category 38 (org's own, reliably Berlin),
     else "sjib-extern" (category 24 only — may be outside Berlin; draft() flags it for review).
     """
     if isinstance(posts, str):
@@ -227,7 +230,8 @@ def parse_youth(posts, today):
     for p in posts:
         name = html.unescape(p["title"]["rendered"]).strip()
         excerpt = html.unescape(_TAG.sub("", p["excerpt"]["rendered"])).strip()
-        start, end = parse_de_date(name + " " + excerpt, p["date"])
+        content = html.unescape(_TAG.sub(" ", p.get("content", {}).get("rendered", "")))
+        start, end = parse_de_date(name + " " + excerpt + " " + content, p["date"])
         if start is None or start < today:
             continue
         name = clean_youth_name(name)        # strip the embedded date tail before it feeds the slug
