@@ -266,5 +266,36 @@ class TestHubDraft(unittest.TestCase):
         self.assertEqual(ingest.fetch_hub(fixtures=True), [])   # offline contract: no page fetches
 
 
+class TestAbroadCity(unittest.TestCase):
+    """draft() strips a Berlin city label (and flags) when the text names a foreign host country."""
+
+    def _draft(self, raw):
+        return ingest.draft(ingest.dedup([raw])[0], "2026-06-30")
+
+    def test_youth_abroad_drops_berlin_city(self):
+        d = self._draft(ingest.Raw("sjib", "Kinderturnier in Barlinek (Polen)",
+                                   "2026-08-01", "2026-08-02", None, "", "", None))
+        self.assertNotIn("city", d)               # the auto Berlin label is removed for abroad
+        self.assertIn("notes", d)
+        validate(d)
+
+    def test_youth_domestic_keeps_berlin_city(self):
+        d = self._draft(ingest.Raw("sjib", "Berliner Kinderturnier",
+                                   "2026-08-01", "2026-08-02", None, "", "", None))
+        self.assertEqual(d.get("city"), "Berlin")
+
+    def test_abroad_detected_in_description(self):
+        d = self._draft(ingest.Raw("bsv-hub", "Emanuel-Lasker-Schachfestival",
+                                   "2026-08-29", "2026-08-29", None, "https://x",
+                                   "Ausgetragen in Barlinek (Polen).", None))
+        self.assertNotIn("city", d)               # no Berlin label, and flagged for review
+        self.assertIn("Ausland", d["notes"])
+
+    def test_aus_polen_no_parens_not_flagged(self):
+        d = self._draft(ingest.Raw("bsv-hub", "Berlin Open", "2026-08-01", "2026-08-01",
+                                   None, "https://x", "Teilnehmer aus Polen willkommen", None))
+        self.assertNotIn("notes", d)              # "aus Polen" (no parens) must NOT fire
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -51,6 +51,13 @@ _TITLE = re.compile(
     r"(?:\s*\(([^)]*)\))?\s*(.*\S)\s*$"
 )
 _EURO = re.compile(r"(\d[\d.\s]*)\s*(?:€|Euro|EUR)")
+# A Berlin-scene event can be hosted abroad (e.g. the Lasker festival in Barlinek/Polen). When the
+# title/description names a foreign host country in parentheses ("... (Polen)"), draft() drops any
+# Berlin city label and flags it for review — parenthesized so it won't fire on "Teilnehmer aus Polen".
+_ABROAD = re.compile(
+    r"\((?:Polen|Polska|Poland|Tschechien|Österreich|Austria|Dänemark|Niederlande|"
+    r"Frankreich|Schweiz|Belgien|Luxemburg|Schweden|Norwegen|Italien|Spanien|"
+    r"Großbritannien|Vereinigtes Königreich)\)", re.I)
 
 # ---- youth source (schachjugend-in-berlin.de WordPress REST) ----------------
 # Tournaments are ordinary posts in categories 38 ("Turniere", own) + 24 ("externe").
@@ -411,6 +418,7 @@ def draft(group, today):
     name = first.name
     n = name.lower()
     blob = " ".join(e.desc for e in evs).lower()
+    abroad = bool(_ABROAD.search(name)) or bool(_ABROAD.search(blob))
     variant = "tandem" if ("tandem" in n or "bughouse" in n) else ("chess960" if "960" in n or "freestyle" in n else "standard")
     kind = ("memorial" if "gedenk" in n else "league" if any(k in n for k in ("liga", "bmm", "bfl", "mannschaftsmeisterschaft"))
             else "festival" if "festival" in n else "championship" if ("meisterschaft" in n or "-em" in n or "-mm" in n) else "open")
@@ -443,6 +451,9 @@ def draft(group, today):
         d["ausschreibung_url"] = enc
     if prizes:
         d["prize_pool"] = {"amount": max(prizes), "currency": "EUR"}
+    if abroad:                        # held abroad -> never carry a Berlin city label; flag for review
+        d.pop("city", None)
+        d.setdefault("notes", "im Ausland ausgetragen — Region/Stadt prüfen")
     return d
 
 

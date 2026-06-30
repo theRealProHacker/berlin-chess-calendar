@@ -60,20 +60,6 @@ class TestValidate(unittest.TestCase):
     def test_edition(self):
         self.assertRaises(ValidationError, validate, mk(edition=0))
 
-    def test_abroad_city_berlin_rejected(self):
-        # A record whose own prose names a foreign host country can't claim city "Berlin"
-        # (the Lasker-in-Barlinek slip). The auto-pull defaults region berlin; this is the
-        # gate that stops a Berlin city label surviving review for an event held abroad.
-        self.assertRaises(ValidationError, validate,
-                          mk(city="Berlin", notes="Ausgetragen in Barlinek (Polen)."))
-        self.assertRaises(ValidationError, validate,
-                          mk(city="Berlin", venue="Praha (Tschechien)"))
-
-    def test_abroad_real_city_ok(self):
-        # Same event with the real host city is fine; "aus Polen" prose (no parens) never fires.
-        validate(mk(city="Barlinek, Polen", notes="Ausgetragen in Barlinek (Polen)."))
-        validate(mk(city="Berlin", notes="Teilnehmer aus Polen willkommen."))
-
 
 class TestSlug(unittest.TestCase):
     def test_strip(self):

@@ -39,16 +39,6 @@ OPTIONAL = {"name_en", "edition", "rounds", "organizer", "venue", "city", "sourc
 
 _ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-# A Berlin-scene event can be hosted abroad (the BSV runs editions outside Germany, e.g. the
-# Lasker festival in Barlinek/Polen). The RSS feeds carry no structured location, so the
-# auto-pull cannot infer the country and draft() defaults region "berlin" — but no record may
-# claim city "Berlin" while its OWN prose names a foreign host country in parentheses
-# ("... in Barlinek (Polen)"). Catches the curation slip where that note is added but the
-# default/auto city is left as Berlin. Parenthesized so it won't fire on "Teilnehmer aus Polen".
-_ABROAD = re.compile(
-    r"\((?:Polen|Polska|Poland|Tschechien|Österreich|Austria|Dänemark|Niederlande|"
-    r"Frankreich|Schweiz|Belgien|Luxemburg|Schweden|Norwegen|Italien|Spanien|"
-    r"Großbritannien|Vereinigtes Königreich)\)", re.I)
 
 
 class ValidationError(ValueError):
@@ -109,11 +99,6 @@ def validate(r: dict) -> dict:
         raise ValidationError(f"{rid}: prize_pool needs 'amount' and 'currency'")
     if r.get("tagged_by", "human") not in ("human", "auto"):
         raise ValidationError(f"{rid}: bad tagged_by")
-    where = " ".join(str(r.get(k) or "") for k in ("name", "venue", "notes"))
-    if r.get("city") == "Berlin" and _ABROAD.search(where):
-        raise ValidationError(
-            f"{rid}: city is 'Berlin' but the text names a host country abroad "
-            f"— set the real city (a Berlin-scene event can be hosted abroad)")
     return r
 
 
