@@ -1,7 +1,7 @@
 [
   {
     "id": "berliner-tandemschach-treffen-2026",
-    "name": "Berliner Tandemschach-Treffen",
+    "name": "Berliner Tandemschach-Treffen 2026",
     "kind": "festival",
     "start_date": "2026-06-25",
     "end_date": "2026-06-28",
@@ -100,7 +100,7 @@
   },
   {
     "id": "jugend-elo-rapid-u20-2026",
-    "name": "Jugend-Elo-Rapid – U20",
+    "name": "Jugend-Elo-Rapid – U20 2026",
     "kind": "youth",
     "start_date": "2026-07-11",
     "end_date": "2026-07-11",
@@ -144,7 +144,7 @@
   },
   {
     "id": "lichtenberger-sommer-2026",
-    "name": "22. Lichtenberger Sommer 2026",
+    "name": "22. Lichtenberger Sommer",
     "kind": "open",
     "edition": 22,
     "start_date": "2026-08-08",
@@ -191,7 +191,7 @@
   },
   {
     "id": "norddeutsche-vereinseinzelmeisterschaft-ndvm-u16-2026",
-    "name": "Norddeutsche Vereinseinzelmeisterschaft (NDVM) U16",
+    "name": "Norddeutsche Vereinseinzelmeisterschaft (NDVM) U16 2026",
     "kind": "youth",
     "start_date": "2026-09-02",
     "end_date": "2026-09-06",
@@ -212,7 +212,7 @@
   },
   {
     "id": "berliner-jugendmannschaftsmeisterschaft-bjmm-2026",
-    "name": "Berliner Jugendmannschaftsmeisterschaft (BJMM)",
+    "name": "Berliner Jugendmannschaftsmeisterschaft (BJMM) 2026/27",
     "kind": "youth",
     "start_date": "2026-09-05",
     "end_date": "2027-04-11",
@@ -235,7 +235,7 @@
   },
   {
     "id": "norddeutsche-vereinseinzelmeisterschaft-ndvm-u12-u14-2026",
-    "name": "Norddeutsche Vereinseinzelmeisterschaft (NDVM) U12/U14",
+    "name": "Norddeutsche Vereinseinzelmeisterschaft (NDVM) U12/U14 2026",
     "kind": "youth",
     "start_date": "2026-09-09",
     "end_date": "2026-09-13",
@@ -256,7 +256,7 @@
   },
   {
     "id": "norddeutsche-vereinseinzelmeisterschaft-ndvm-u12w-u16w-2026",
-    "name": "Norddeutsche Vereinseinzelmeisterschaft (NDVM) U12w/U16w",
+    "name": "Norddeutsche Vereinseinzelmeisterschaft (NDVM) U12w/U16w 2026",
     "kind": "youth",
     "start_date": "2026-09-18",
     "end_date": "2026-09-21",
@@ -318,7 +318,7 @@
   },
   {
     "id": "kindersommeropen-2026",
-    "name": "Kindersommeropen",
+    "name": "Kindersommeropen 2026",
     "kind": "youth",
     "start_date": "2026-10-03",
     "end_date": "2026-10-03",
@@ -341,7 +341,7 @@
   },
   {
     "id": "deutsche-laendermeisterschaft-dlm-2026",
-    "name": "Deutsche Ländermeisterschaft (DLM)",
+    "name": "Deutsche Ländermeisterschaft (DLM) 2026",
     "kind": "youth",
     "start_date": "2026-10-07",
     "end_date": "2026-10-12",
@@ -363,7 +363,7 @@
   },
   {
     "id": "jugendsommeropen-2026",
-    "name": "Jugendsommeropen",
+    "name": "Jugendsommeropen 2026",
     "kind": "youth",
     "start_date": "2026-10-17",
     "end_date": "2026-10-18",
@@ -386,7 +386,7 @@
   },
   {
     "id": "internationale-einzelmeisterschaft-iem-u8-2026",
-    "name": "Internationale Einzelmeisterschaft (IEM) U8",
+    "name": "26. Internationale Einzelmeisterschaft (IEM) U8",
     "kind": "youth",
     "start_date": "2026-10-18",
     "end_date": "2026-10-24",
@@ -411,7 +411,7 @@
   },
   {
     "id": "kinderherbstopen-2026",
-    "name": "Kinderherbstopen",
+    "name": "Kinderherbstopen 2026",
     "kind": "youth",
     "start_date": "2026-11-14",
     "end_date": "2026-11-14",
@@ -434,7 +434,7 @@
   },
   {
     "id": "jugendherbstopen-2026",
-    "name": "Jugendherbstopen",
+    "name": "Jugendherbstopen 2026",
     "kind": "youth",
     "start_date": "2026-11-28",
     "end_date": "2026-11-29",
@@ -476,7 +476,7 @@
   },
   {
     "id": "deutsche-vereinsmeisterschaft-dvm-u12-u20-2026",
-    "name": "Deutsche Vereinsmeisterschaft (DVM) U12–U20",
+    "name": "Deutsche Vereinsmeisterschaft (DVM) U12–U20 2026",
     "kind": "youth",
     "start_date": "2026-12-26",
     "end_date": "2026-12-30",
@@ -497,7 +497,7 @@
   },
   {
     "id": "deutsche-vereinsmeisterschaft-dvm-u10-2026",
-    "name": "Deutsche Vereinsmeisterschaft (DVM) U10",
+    "name": "Deutsche Vereinsmeisterschaft (DVM) U10 2026",
     "kind": "youth",
     "start_date": "2026-12-27",
     "end_date": "2026-12-29",
@@ -578,7 +578,7 @@
   },
   {
     "id": "berliner-jugendeinzelmeisterschaft-der-maedchen-bjemw-2027",
-    "name": "Berliner Jugendeinzelmeisterschaft der Mädchen (BJEMw)",
+    "name": "Berliner Jugendeinzelmeisterschaft der Mädchen (BJEMw) 2027",
     "kind": "youth",
     "start_date": "2027-01-16",
     "end_date": "2027-02-28",
@@ -600,7 +600,7 @@
   },
   {
     "id": "berliner-jugendeinzelmeisterschaft-bjem-2027",
-    "name": "Berliner Jugendeinzelmeisterschaft (BJEM)",
+    "name": "Berliner Jugendeinzelmeisterschaft (BJEM) 2027",
     "kind": "youth",
     "start_date": "2027-01-30",
     "end_date": "2027-02-05",
@@ -622,7 +622,7 @@
   },
   {
     "id": "jugendwinteropen-2027",
-    "name": "Jugendwinteropen",
+    "name": "Jugendwinteropen 2027",
     "kind": "youth",
     "start_date": "2027-01-30",
     "end_date": "2027-01-31",
@@ -645,7 +645,7 @@
   },
   {
     "id": "kinderwinteropen-2027",
-    "name": "Kinderwinteropen",
+    "name": "Kinderwinteropen 2027",
     "kind": "youth",
     "start_date": "2027-01-30",
     "end_date": "2027-01-30",
@@ -668,7 +668,7 @@
   },
   {
     "id": "kinderfruehlingsturnier-2027",
-    "name": "Kinderfrühlingsturnier",
+    "name": "Kinderfrühlingsturnier 2027",
     "kind": "youth",
     "start_date": "2027-02-27",
     "end_date": "2027-02-28",
@@ -691,7 +691,7 @@
   },
   {
     "id": "jugendschnellschach-mannschaftsopen-2027",
-    "name": "Jugendschnellschach-Mannschaftsopen",
+    "name": "Jugendschnellschach-Mannschaftsopen 2027",
     "kind": "youth",
     "start_date": "2027-03-13",
     "end_date": "2027-03-14",
@@ -733,7 +733,7 @@
   },
   {
     "id": "jugend-mannschaftsopen-2027",
-    "name": "Jugend-Mannschaftsopen",
+    "name": "Jugend-Mannschaftsopen 2027",
     "kind": "youth",
     "start_date": "2027-04-10",
     "end_date": "2027-04-11",
@@ -754,7 +754,7 @@
   },
   {
     "id": "deutsche-schulschachmeisterschaften-dssm-2027",
-    "name": "Deutsche Schulschachmeisterschaften (DSSM)",
+    "name": "Deutsche Schulschachmeisterschaften (DSSM) 2027",
     "kind": "youth",
     "start_date": "2027-04-25",
     "end_date": "2027-04-28",
@@ -775,7 +775,7 @@
   },
   {
     "id": "deutsche-jugendeinzelmeisterschaften-dem-2027",
-    "name": "Deutsche Jugendeinzelmeisterschaften (DEM)",
+    "name": "Deutsche Jugendeinzelmeisterschaften (DEM) 2027",
     "kind": "youth",
     "start_date": "2027-05-15",
     "end_date": "2027-05-23",
@@ -797,7 +797,7 @@
   },
   {
     "id": "abrafaxe-turnier-2027",
-    "name": "Abrafaxe-Turnier",
+    "name": "29. Abrafaxe-Turnier",
     "kind": "youth",
     "start_date": "2027-05-29",
     "end_date": "2027-05-29",
@@ -820,7 +820,7 @@
   },
   {
     "id": "deutsche-familienmeisterschaft-2027",
-    "name": "Deutsche Familienmeisterschaft",
+    "name": "Deutsche Familienmeisterschaft 2027",
     "kind": "youth",
     "start_date": "2027-06-05",
     "end_date": "2027-06-05",
@@ -839,7 +839,7 @@
   },
   {
     "id": "berliner-jugendblitzmeisterschaft-2027",
-    "name": "Berliner Jugendblitzmeisterschaft",
+    "name": "Berliner Jugendblitzmeisterschaft 2027",
     "kind": "youth",
     "start_date": "2027-06-12",
     "end_date": "2027-06-12",
@@ -861,7 +861,7 @@
   },
   {
     "id": "berliner-jugendschnellschachmeisterschaft-2027",
-    "name": "Berliner Jugendschnellschachmeisterschaft",
+    "name": "Berliner Jugendschnellschachmeisterschaft 2027",
     "kind": "youth",
     "start_date": "2027-06-13",
     "end_date": "2027-06-13",
@@ -905,7 +905,7 @@
   },
   {
     "id": "lichtenberger-sommer-2027",
-    "name": "23. Lichtenberger Sommer 2027",
+    "name": "23. Lichtenberger Sommer",
     "kind": "open",
     "edition": 23,
     "start_date": "2027-08-14",
