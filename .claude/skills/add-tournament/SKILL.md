@@ -33,6 +33,18 @@ commit`/`git push` on your own.
 Order: **official site → Wikipedia (recurrence/history) → chess-results**. Capture: start/end
 dates, venue, city, organizer, variant, time_control, rounds/format, prize_pool, and a
 `source_url`.
+- **What is a `venue` (vs `city` vs district):** a `venue` is the specific playing **site** — a
+  named building/hall you could type into a maps app and reach the front door, ideally with its
+  street (e.g. `"Andreas-Gymnasium, Koppenstraße 76"`, `"Karlsruhe Congress Center"`,
+  `"Hans-Rosenthal-Haus"`). A city **district/borough is NOT a venue** — `"Berlin-Kreuzberg"`,
+  `"-Karlshorst"`, `"-Spandau"`, `"-Zehlendorf"` are localities, not sites. `city` is the city
+  (`"Berlin"`). If you only know the district, **leave `venue` unset** (mention the district in
+  `notes` if useful); never put a bare district in `venue`. Once the building is known, the
+  district may ride along inside the venue string (`"Andreas-Gymnasium, Berlin-Friedrichshain"`).
+  Test: if you can't navigate to a front door with it, it isn't a venue.
+- **`name` language:** record the event's name in the language of its **own official page** — do
+  not translate (`"Lichtenberger Sommer"` stays German; an English-run event stays English).
+  There is a single `name` field (no separate English/German name).
 - **Known trap:** DuckDuckGo/Bing/Google **search-result pages** bot-challenge the headless
   browser. Go **direct** to official / Wikipedia / chess-results URLs — those fetch fine.
 - For an **unannounced future edition**, derive the predicted window from the recurrence
@@ -44,8 +56,10 @@ dates, venue, city, organizer, variant, time_control, rounds/format, prize_pool,
 ```bash
 python -m bcc.add skeleton "<name>" <year>      # prints a fill-in record + the enum vocab (stderr)
 ```
-Fill the blanks from your research using **only** values from the printed `ENUMS`/`AGE`. Keep
-`tagged_by:"auto"` (the skeleton sets it — this record is machine-researched). Set
+Fill the blanks from your research using **only** values from the printed `ENUMS`/`AGE`. **Name
+format:** an edition-numbered series takes its ordinal and **no year** (`"22. Lichtenberger
+Sommer"`); a series identified by year takes the year and **no ordinal** (`"Grenke Chess Open
+2026"`). Keep `tagged_by:"auto"` (the skeleton sets it — this record is machine-researched). Set
 `status:"confirmed"` **only** with real announced dates; otherwise `"expected"`. Save the
 finished record to a temp file (e.g. `/tmp/draft.json`).
 
