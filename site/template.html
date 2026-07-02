@@ -358,7 +358,7 @@ window.TOURNAMENTS = __DATA__;
     return L.monthsFull[parseInt(p[1],10)-1]+" "+p[0];
   }
 
-  function nameOf(t){ return (lang==="en"&&t.name_en)?t.name_en:t.name; }
+  function nameOf(t){ return t.name; }
 
   // ---- event detail modal: header (deadline · date · format · organizer) + bullet-less links ----
   var EXT='<svg class="ext" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg>';

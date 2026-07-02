@@ -33,7 +33,7 @@ REQUIRED = ["id", "name", "kind", "start_date", "end_date", "variant", "time_con
 # registration ("Anmeldung") is free text: a sign-up URL, or a phrase like "über den
 # Verein" / "über Qualifikation" for non-opens. chess_results_url / ausschreibung_url
 # (the PDF) are blank when they don't exist.
-OPTIONAL = {"name_en", "edition", "rounds", "organizer", "venue", "city", "source_url",
+OPTIONAL = {"edition", "rounds", "organizer", "venue", "city", "source_url",
             "registration_deadline", "registration", "chess_results_url", "ausschreibung_url",
             "prize_pool", "tagged_by", "notes"}
 
