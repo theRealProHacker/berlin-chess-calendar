@@ -280,7 +280,7 @@ missing sources.
 | 4 | BSV `termine.html` scrape | mechanical (both voices) | P2 | reuses existing parser; lifts the full forward horizon the capped feed hides |
 | 5 | Youth `content.rendered` fix | mechanical (both voices) | P1/P2 | body already fetched + discarded; highest coverage-per-byte |
 | 6 | Default region filter → Berlin | owner-selected | P1 | verified leak of non-Berlin events into default list + .ics |
-| 7 | "Number of rounds" stays parked | owner directive | P4 | derive from `rounds` + wire the dead `runden` label; do NOT add a `round_count` scalar (DRY) |
+| 7 | "Number of rounds" captured as a structured `rounds_count` scalar (from the Series class `n_rounds`), surfaced via the `runden` label + `.ics` | owner directive (2026-07-01) | P1 | block opens have no per-round dates, so a count scalar is the only structured home; a `rounds_count == len(rounds)` validate guard keeps it consistent with the round-date list |
 
 ### Out of scope (separate plans)
 - Terminplan PDF auto-parser — fragile landscape grid; the hub's per-event pages replace it.
@@ -290,10 +290,10 @@ missing sources.
 
 ## Backlog
 
-- **Number of rounds** (from QA, 2026-06-30). Note/surface a tournament's round count.
-  The schema already carries `rounds: [dates]` (count is derivable), but it is not captured
-  or shown for most records. Decide where it belongs: a data field to fill during curation,
-  the list/`index.html` display, and/or the `.ics` description. Parked — note only for now.
+- **Number of rounds** (from QA, 2026-06-30; design settled 2026-07-01). Captured as a structured
+  `rounds_count` scalar on each record, sourced from the Series class `n_rounds` and surfaced in the
+  list display + the `.ics` description (see the recurring-Series design doc). Remaining work is the
+  data backfill + the Harald-Lieb fix below.
   - Canonical example (owner Ausschreibung, 2026-06-30): **10. Harald-Lieb-Gedenkturnier
     (24. SKZ-Open)** is a 7-round Thursday-evening series, **21.05.–02.07.2026** (rounds 21.05,
     28.05, 04.06, 11.06, 18.06, 25.06, 02.07; 19:00; Hans-Rosenthal-Haus, Berlin-Zehlendorf).
