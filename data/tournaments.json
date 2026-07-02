@@ -55,10 +55,10 @@
     "sources": ["bsv-termin", "organizer"],
     "source_url": "https://skzehlendorf.de/turniere/harald-lieb-gedenkturnier/",
     "organizer": "SK Zehlendorf",
-    "venue": "Berlin-Zehlendorf",
+    "venue": "Hans-Rosenthal-Haus, Berlin-Zehlendorf",
     "city": "Berlin",
     "notes": "Multi-round: ~7 Runden, donnerstags abends, 02.07-11.09.2026. Exact round dates to be filled from the organizer.",
-    "last_verified": "2026-06-25"
+    "last_verified": "2026-07-02"
   },
   {
     "id": "berliner-schnellschach-em-2026",
@@ -136,11 +136,11 @@
     "sources": ["dsb-berlin", "bsv-termin", "chessmanager"],
     "source_url": "https://www.schachbund.de/turnierdetails/kreuzberger-schachsommer-werner-ott-open-2026.html",
     "organizer": "SC Kreuzberg e.V.",
-    "venue": "Berlin-Kreuzberg",
+    "venue": "SC Kreuzberg e.V., Haus des Sports, Böcklerstr. 1, 10969 Berlin-Kreuzberg",
     "city": "Berlin",
     "prize_pool": { "amount": 3100, "currency": "EUR" },
     "notes": "9 Runden Schweizer System, 90min/40 + 15min + 30s Inkrement (klassisch), DWZ+ELO.",
-    "last_verified": "2026-06-25"
+    "last_verified": "2026-07-02"
   },
   {
     "id": "lichtenberger-sommer-2026",
@@ -159,11 +159,11 @@
     "sources": ["dsb-berlin", "bsv-termin", "organizer"],
     "source_url": "https://friesen-lichtenberg.de/lichtenberger-sommer/",
     "organizer": "SV Friesen Lichtenberg",
-    "venue": "Berlin-Karlshorst",
+    "venue": "Tribünenhalle der Trabrennbahn Karlshorst, Treskowallee 159, 10318 Berlin-Karlshorst",
     "city": "Berlin",
     "prize_pool": { "amount": 5150, "currency": "EUR" },
     "notes": "Open, 9 Runden Schweizer System.",
-    "last_verified": "2026-06-27",
+    "last_verified": "2026-07-02",
     "registration": "per Überweisung des Startgeldes",
     "chess_results_url": "https://chess-results.com/tnr1332749.aspx",
     "ausschreibung_url": "https://friesen-lichtenberg.de/wp-content/uploads/friesen/liso-2026/ausschreibung-liso-2026.pdf"
@@ -290,11 +290,11 @@
     "status": "confirmed",
     "sources": ["bsv-termin"],
     "source_url": "https://www.berlinerschachverband.de/termin/spreewaldpokal-2026.html",
-    "city": "Brandenburg",
-    "venue": "Lübbenau",
+    "city": "Luckau (OT Duben)",
+    "venue": "Landhaus Duben, Dubener Hauptstraße 5, 15926 Luckau OT Duben",
     "notes": "Nearby (Brandenburg), travel-worthy for Berlin players.",
     "ausschreibung_url": "https://www.berlinerschachverband.de/files/bsv/termine/2026/Spreewaldpokal_2026_Ausschreibung.pdf",
-    "last_verified": "2026-06-30"
+    "last_verified": "2026-07-02"
   },
   {
     "id": "berliner-mannschaftsmeisterschaft-2026-27",
@@ -470,9 +470,9 @@
     "status": "confirmed",
     "sources": ["dsb-berlin", "bsv-termin"],
     "source_url": "https://www.schachbund.de/turnierdetails/spandauer-weihnachts-rapid-2026.html",
-    "venue": "Berlin-Spandau",
+    "venue": "Bürgersaal, Rathaus Spandau, Carl-Schurz-Str. 2/6, 13597 Berlin",
     "city": "Berlin",
-    "last_verified": "2026-06-25"
+    "last_verified": "2026-07-02"
   },
   {
     "id": "deutsche-vereinsmeisterschaft-dvm-u12-u20-2026",
@@ -533,9 +533,9 @@
     "status": "confirmed",
     "sources": ["dsb-berlin", "bsv-termin"],
     "source_url": "https://www.schachbund.de/turnierdetails/9-spandauer-weihnachtsopen-a-open.html",
-    "venue": "Berlin-Spandau",
+    "venue": "Bürgersaal, Rathaus Spandau, Carl-Schurz-Str. 2/6, 13597 Berlin",
     "city": "Berlin",
-    "last_verified": "2026-06-25"
+    "last_verified": "2026-07-02"
   },
   {
     "id": "spandauer-weihnachtsopen-b-open-2026",
@@ -553,9 +553,9 @@
     "status": "confirmed",
     "sources": ["dsb-berlin", "bsv-termin"],
     "source_url": "https://www.schachbund.de/turnierdetails/9-spandauer-weihnachtsopen-b-open.html",
-    "venue": "Berlin-Spandau",
+    "venue": "Bürgersaal, Rathaus Spandau, Carl-Schurz-Str. 2/6, 13597 Berlin",
     "city": "Berlin",
-    "last_verified": "2026-06-25"
+    "last_verified": "2026-07-02"
   },
   {
     "id": "spandauer-weihnachts-blitz-2026",
@@ -572,9 +572,9 @@
     "status": "confirmed",
     "sources": ["dsb-berlin", "bsv-termin"],
     "source_url": "https://www.schachbund.de/turnierdetails/spandauer-weihnachts-blitz-2026.html",
-    "venue": "Berlin-Spandau",
+    "venue": "Bürgersaal, Rathaus Spandau, Carl-Schurz-Str. 2/6, 13597 Berlin",
     "city": "Berlin",
-    "last_verified": "2026-06-25"
+    "last_verified": "2026-07-02"
   },
   {
     "id": "berliner-jugendeinzelmeisterschaft-der-maedchen-bjemw-2027",
@@ -898,10 +898,10 @@
     "sources": ["recurring"],
     "source_url": "https://skzehlendorf.de/turniere/harald-lieb-gedenkturnier/",
     "organizer": "SK Zehlendorf",
-    "venue": "Berlin-Zehlendorf",
+    "venue": "Hans-Rosenthal-Haus, Berlin-Zehlendorf",
     "city": "Berlin",
     "notes": "Predicted from recurrence (editions 6-10 ran 2022-2026). Date estimated ~early July; not yet announced.",
-    "last_verified": "2026-06-25"
+    "last_verified": "2026-07-02"
   },
   {
     "id": "lichtenberger-sommer-2027",
@@ -920,9 +920,9 @@
     "sources": ["recurring"],
     "source_url": "https://friesen-lichtenberg.de/lichtenberger-sommer/",
     "organizer": "SV Friesen Lichtenberg",
-    "venue": "Berlin-Karlshorst",
+    "venue": "Tribünenhalle der Trabrennbahn Karlshorst, Treskowallee 159, 10318 Berlin-Karlshorst",
     "city": "Berlin",
     "notes": "Predicted from recurrence (22nd edition in 2026, stable mid-August slot). Date estimated; not yet announced.",
-    "last_verified": "2026-06-25"
+    "last_verified": "2026-07-02"
   }
 ]
