@@ -30,7 +30,7 @@ German-first with an English toggle. Open data, open source, free static hosting
   filters, your subscription changes with it — the URL carries the query.
 - **Honest about provenance.** Every record cites its `sources` and `last_verified` date, and
   auto-guessed fields are flagged `tagged_by: auto` for a human to confirm.
-- **Tiny and durable.** Three small stdlib modules, a single HTML template, and a JSON file.
+- **Tiny and durable.** Five small stdlib modules, a single HTML template, and a JSON file.
   No framework to rot, nothing to keep patched.
 
 ## Event details & links
@@ -106,6 +106,15 @@ python3 -m bcc.add set <id> status=confirmed start_date=YYYY-MM-DD end_date=YYYY
   `insert` (validate + sort), `set` (validated field update — corrections *and*
   prediction→confirmed promotions), `fmt` (re-normalize). Every write goes through
   `validate()`; a record that fails the schema never reaches the file.
+- **`bcc.series`** is the recurring-tournament engine, one singleton class per series:
+  `predict` forecasts each series' next editions from its history (same slot + edition+1 by
+  default, or a bespoke rule — Grenke's Easter block, Harald-Lieb's seven Thursdays),
+  `confirm` reads the real dates from each series' own source and proposes `expected →
+  confirmed` promotions as a diff you review, `missing` lists what still needs a human, and
+  `suggest` surfaces feed events matching no known series. Confirmation is automated per
+  series (RSS, organizer JSON-LD/HTML, or the Ausschreibung PDF). The PDF path uses
+  `pdftotext` **if it's installed** and otherwise degrades to a manual confirm — nothing that
+  ships or that the test suite runs needs it, so the zero-dependency promise still holds.
 
 Two agent workflows live in `.claude/skills/` and ride on top of `bcc.add`:
 **`add-tournament`** (research an off-feed/national event and insert it, with an independent
@@ -115,7 +124,8 @@ announced).
 
 ## Develop
 
-No install step — it's the standard library.
+No install step — it's the standard library. (`bcc.series confirm` optionally shells out to
+`pdftotext` for PDF-only sources; the build, the site, and the test suite are pure stdlib.)
 
 ```bash
 python3 -m unittest discover -s tests -t .   # run the test suite
@@ -128,8 +138,10 @@ python3 -m http.server -d dist               # preview at http://localhost:8000
 ```
 data/tournaments.json   the data — validated dicts, hand-editable, the open dataset
 bcc/build.py            schema + validation + static-site/.ics builder   (python3 -m bcc.build)
-bcc/ingest.py           fetch Berlin feeds + dedup + draft records       (python3 -m bcc.ingest)
-bcc/add.py              deterministic insert/set/skeleton editor         (python3 -m bcc.add)
+bcc/feeds.py            shared feed parsers (RSS / youth REST / JSON-LD)  (imported by ingest+series)
+bcc/ingest.py           discover feed events + dedup + draft records      (python3 -m bcc.ingest)
+bcc/series.py           recurring-series predict/confirm/missing/suggest  (python3 -m bcc.series)
+bcc/add.py              deterministic insert/set/skeleton editor          (python3 -m bcc.add)
 site/template.html      the static site (HTML/CSS/vanilla JS, __DATA__ placeholder)
 tests/                  unittest suite + real feed fixtures
 dist/                   build output (git-ignored; built and deployed in CI)
