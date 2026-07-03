@@ -1,0 +1,561 @@
+"""Recurring-tournament class layer: predict future editions, confirm them from real sources.
+
+    python3 -m bcc.series predict [--apply]   # ensure the horizon of expected editions exists
+    python3 -m bcc.series confirm [--apply]    # fetch real dates -> promote expected -> confirmed
+    python3 -m bcc.series missing              # what a human must still fill / hand-confirm
+    python3 -m bcc.series suggest              # feed events matching no known series (the scout)
+
+One base `Series` + one singleton subclass per recurring series in the explicit REGISTRY.
+The fat base does the common case (same ISO-week slot next year, edition+1, look me up in a
+machine source); a subclass overrides only the bespoke bits. Recurrence logic is Python, the
+editions stay in data/tournaments.json, and every generated record passes bcc.build.validate.
+
+Confirmation is automated as far as each source allows, per series:
+  - feed        default fetch(): find me on the BSV/DSB RSS by normalized name
+  - web fetch   Grenke (JSON-LD), Harald-Lieb (Ausschreibung PDF via pdftotext),
+                Lichtenberger (organizer HTML)
+  - manual      fetch() returns None -> `missing` flags it for hand-confirmation
+`confirm` proposes a reviewable batch of `add set` / `add insert` commands (diffs by default,
+--apply opt-in); a human approves before anything is written. `confirm` + `missing` are meant
+to be run together each month.
+
+`id = f"{series_id}-{year}"` is the iCal UID and matches every id already in the file, so a
+predicted edition and its confirmed self share one UID — promotion never duplicates a
+subscriber's event. `pdftotext` is an OPTIONAL curation-time tool: absent it, the PDF fetch
+degrades to None (manual), and nothing that ships or that CI runs needs it.
+"""
+from __future__ import annotations
+
+import json
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import urllib.request
+from datetime import date, timedelta
+
+from . import add
+from .build import ROOT, load, validate
+from .feeds import (UA, _MONTH, _MONTHS, _meta_description, fetch_all,
+                    jsonld_event_dates, norm_name, parse_de_date, strip_html)
+
+
+# ---- date math (stdlib computus, no dependency) -----------------------------
+
+def easter(year: int) -> date:
+    """Gregorian Easter Sunday (Anonymous Gregorian / 'Meeus/Jones/Butcher' algorithm)."""
+    a = year % 19
+    b, c = divmod(year, 100)
+    d, e = divmod(b, 4)
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i, k = divmod(c, 4)
+    ell = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * ell) // 451
+    month = (h + ell - 7 * m + 114) // 31
+    day = ((h + ell - 7 * m + 114) % 31) + 1
+    return date(year, month, day)
+
+
+def _iso_weeks(year: int) -> int:
+    """Number of ISO weeks in `year` (52 or 53). Dec 28 is always in the last ISO week."""
+    return date(year, 12, 28).isocalendar()[1]
+
+
+def nth_weekday(year: int, month: int, weekday: int, n: int) -> date:
+    """The n-th `weekday` (1=Mon..7=Sun) of `month` in `year` (n>=1)."""
+    first = date(year, month, 1)
+    offset = (weekday - first.isoweekday()) % 7
+    return first + timedelta(days=offset + 7 * (n - 1))
+
+
+def thursdays_from_mid_may(year: int, n: int) -> list[date]:
+    """`n` consecutive Thursday evenings, anchored on the 3rd Thursday of May.
+
+    The Harald-Lieb schedule. The real start Thursday drifts ~2 weeks year to year (it dodges
+    Ascension/Pentecost), so this is only the guess — `confirm` reads the true dates from the
+    Ausschreibung PDF when they differ. Kept deterministic so the prediction never surprises.
+    """
+    start = nth_weekday(year, 5, 4, 3)          # 4 = Thursday, 3rd of May
+    return [start + timedelta(weeks=w) for w in range(n)]
+
+
+# ---- base class -------------------------------------------------------------
+
+class Series:
+    # identity & fixed axes (override per subclass)
+    series_id: str = ""
+    name: str = ""                    # single display stem, in the page's own language
+    edition_numbered: bool = True     # "22. Lichtenberger Sommer" vs "Grenke Chess Open 2026"
+    organizer = None
+    venue = None                      # the specific playing site, never a bare district
+    city = "Berlin"
+    source_url = None
+    kind = "open"
+    variant = "standard"
+    time_control = "classical"
+    participation = "single"
+    region = "berlin"
+    schedule_format = "block"
+    age_limit = ("open",)
+    # recurrence hints for the default predictor
+    iso_week: int | None = None       # stable slot; if None, derived from the latest known edition
+    weekday: int | None = None        # start weekday (1=Mon..7=Sun); if None, derived from latest
+    span_days = 0                     # end = start + span_days
+    n_rounds: int | None = None
+    horizon_years = 2
+
+    # ---- edition lookup ----
+    def editions(self, records):
+        """Records belonging to this series: id == f'{series_id}-YYYY' (UID-derived, deterministic)."""
+        pat = re.compile(rf"^{re.escape(self.series_id)}-(\d{{4}})$")
+        return [r for r in records if pat.match(r["id"])]
+
+    def latest_edition(self, records):
+        eds = self.editions(records)
+        if not eds:
+            return None
+        # a confirmed edition is a stronger base than an expected one at the same date
+        return max(eds, key=lambda r: (r["start_date"], r.get("status") == "confirmed"))
+
+    def name_for(self, year, edition=None) -> str:
+        if not self.edition_numbered:
+            return f"{self.name} {year}"
+        return f"{edition}. {self.name}" if edition else self.name
+
+    # ---- record builder ----
+    def _edition(self, year, start, end, *, edition=None, rounds=None, status="expected",
+                 sources=None, source_url=None, today=None) -> dict:
+        """Build one validate()-clean edition record. id is series_id-derived, not name-derived.
+
+        Does NOT emit `series`/`rounds_count` — those fields join the schema in increment 2; here
+        they would fail validate() as unknown keys.
+        """
+        today = today or date.today().isoformat()
+        rec = {
+            "id": f"{self.series_id}-{year}",
+            "name": self.name_for(year, edition),
+            "kind": self.kind,
+            "start_date": start.isoformat() if isinstance(start, date) else start,
+            "end_date": end.isoformat() if isinstance(end, date) else end,
+            "variant": self.variant,
+            "time_control": self.time_control,
+            "age_limit": list(self.age_limit),
+            "participation": self.participation,
+            "schedule_format": self.schedule_format,
+            "region": self.region,
+            "status": status,
+            "sources": list(sources) if sources else ["recurring"],
+            "last_verified": today,
+            "tagged_by": "auto",
+        }
+        if edition is not None:
+            rec["edition"] = edition
+        if rounds:
+            rec["rounds"] = [d.isoformat() if isinstance(d, date) else d for d in rounds]
+        for attr in ("organizer", "venue", "city"):
+            v = getattr(self, attr, None)
+            if v:
+                rec[attr] = v
+        su = source_url or self.source_url
+        if su:
+            rec["source_url"] = su
+        return validate(rec)
+
+    # ---- prediction (default: same ISO-week slot, edition + delta) ----
+    def predict(self, year, records, *, today=None) -> dict | None:
+        prev = self.latest_edition(records)
+        weekday = self.weekday
+        if prev is not None:
+            ps = date.fromisoformat(prev["start_date"])
+            week = self.iso_week if self.iso_week is not None else ps.isocalendar()[1]
+            if weekday is None:
+                weekday = ps.isoweekday()
+            edition = prev["edition"] + (year - ps.year) if prev.get("edition") else None
+        elif self.iso_week is not None:          # cold start with a declared slot
+            week, weekday, edition = self.iso_week, (weekday or 6), None
+        else:
+            return None                           # no slot to predict from -> `missing` flags it
+        week = min(week, _iso_weeks(year))
+        start = date.fromisocalendar(year, week, weekday)
+        end = start + timedelta(days=self.span_days)
+        return self._edition(year, start, end, edition=edition, today=today)
+
+    # ---- confirmation source (default: find me on the RSS feed) ----
+    def fetch(self, year, *, feed_events=None) -> dict | None:
+        """Return the real edition's dates {start_date,end_date[,rounds][,source_url]} or None.
+
+        Default: the BSV/DSB RSS by normalized name, within a loose slot around the target year.
+        Override for a bespoke machine source; return None to declare manual-only.
+        """
+        evs = feed_events if feed_events is not None else fetch_all()
+        target = norm_name(self.name)
+        hits = [e for e in evs if norm_name(e.name) == target and e.start[:4] == str(year)]
+        if not hits:
+            return None
+        e = min(hits, key=lambda x: x.start)
+        return {"start_date": e.start, "end_date": e.end, "source_url": e.link or None}
+
+
+# ---- fetch adapters (thin, injectable so the backtest runs offline) ---------
+
+def _have_pdftotext() -> bool:
+    return shutil.which("pdftotext") is not None
+
+
+def _download(url: str) -> bytes:
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    with urllib.request.urlopen(req, timeout=30) as r:  # nosec - organizer https urls
+        return r.read()
+
+
+def http_page(url: str) -> str:
+    return _download(url).decode("utf-8", "replace")
+
+
+def pdf_text(url: str) -> str | None:
+    """`pdftotext -layout` of a downloaded PDF, or None if the binary is absent / conversion fails.
+
+    OPTIONAL dependency by design: no pdftotext -> None -> the caller degrades to manual. Nothing
+    that ships or that CI runs invokes this; only the maintainer's local `confirm` does.
+    """
+    if not _have_pdftotext():
+        return None
+    try:
+        raw = _download(url)
+    except Exception:
+        return None
+    with tempfile.NamedTemporaryFile(suffix=".pdf") as f:
+        f.write(raw)
+        f.flush()
+        try:
+            out = subprocess.run(["pdftotext", "-layout", f.name, "-"],  # nosec - fixed argv
+                                 capture_output=True, timeout=30)
+        except Exception:
+            return None
+    return out.stdout.decode("utf-8", "replace") if out.returncode == 0 else None
+
+
+def jsonld_edition(url, year, *, page=None) -> dict | None:
+    """Grenke-style: the schema.org Event date on the page, if it falls in `year`."""
+    page = page if page is not None else http_page(url)
+    s, e = jsonld_event_dates(page)
+    if s and s[:4] == str(year):
+        return {"start_date": s, "end_date": e, "source_url": url}
+    return None
+
+
+_DDMM = re.compile(r"\b(\d{1,2})\.\s*(\d{1,2})\.(?:\s*(\d{4}))?")
+
+
+def weekly_dates(text, year, weekday=4) -> list[date]:
+    """Longest run of same-`weekday` dates 7 days apart, parsed from DD.MM.[YYYY] tokens in `year`.
+
+    For the Harald-Lieb Ausschreibung: its "Termine / Do. dd.mm." lines list the round Thursdays.
+    Robust to stray dates (deadlines, footers): only same-weekday, weekly-spaced dates chain.
+    """
+    seen = set()
+    for dd, mm, yy in _DDMM.findall(text):
+        y = int(yy) if yy else year
+        if y != year:
+            continue
+        try:
+            d = date(year, int(mm), int(dd))
+        except ValueError:
+            continue
+        if d.isoweekday() == weekday:
+            seen.add(d)
+    days = sorted(seen)
+    best: list[date] = []
+    for i, d0 in enumerate(days):
+        run = [d0]
+        for d1 in days[i + 1:]:
+            if (d1 - run[-1]).days == 7:
+                run.append(d1)
+            elif d1 > run[-1]:
+                break
+        if len(run) > len(best):
+            best = run
+    return best
+
+
+def pdf_edition(url, year, *, text=None, weekday=4, min_rounds=3) -> dict | None:
+    """Harald-Lieb-style: the weekly round Thursdays from the Ausschreibung PDF, if in `year`."""
+    txt = text if text is not None else pdf_text(url)
+    if not txt:
+        return None
+    rounds = weekly_dates(txt, year, weekday)
+    if len(rounds) < min_rounds:
+        return None
+    return {"start_date": rounds[0].isoformat(), "end_date": rounds[-1].isoformat(),
+            "rounds": [d.isoformat() for d in rounds], "source_url": url}
+
+
+def pdf_link_for(page, year) -> str | None:
+    """The year's Ausschreibung PDF href on a landing page (skzehlendorf uses /storage/YYYY/...pdf)."""
+    for u in re.findall(r'href="([^"]+\.pdf)"', page, re.I):
+        if f"/storage/{year}/" in u:
+            return u
+    return None
+
+
+# "08. - 16. August 2026" / "23. – 31. August 2025" — day. [dash] day. Month year (Lichtenberger)
+_RANGE_DASH = re.compile(r"(\d{1,2})\.\s*[–\-]\s*(\d{1,2})\.\s*" + _MONTH + r"\s*(\d{4})", re.I)
+
+
+def dash_range(text, year) -> tuple:
+    """First 'DD. – DD. Month YYYY' range whose year == `year`, as (start_iso, end_iso) or (None, None)."""
+    for dd1, dd2, mon, yy in _RANGE_DASH.findall(text):
+        if int(yy) != year:
+            continue
+        mo = _MONTHS[mon.lower()]
+        try:
+            s, e = date(year, mo, int(dd1)), date(year, mo, int(dd2))
+        except ValueError:
+            continue
+        if e >= s:
+            return s.isoformat(), e.isoformat()
+    return None, None
+
+
+def html_edition(url, year, *, page=None) -> dict | None:
+    """Lichtenberger-style: JSON-LD if present, else a German date range in the page/meta text."""
+    page = page if page is not None else http_page(url)
+    got = jsonld_edition(url, year, page=page)
+    if got:
+        return got
+    text = _meta_description(page) + " " + strip_html(page)
+    s, e = dash_range(text, year)
+    if not s:
+        s, e = parse_de_date(text, f"{year}-01-01")
+        if s and s[:4] != str(year):
+            s = None
+    if s:
+        return {"start_date": s, "end_date": e, "source_url": url}
+    return None
+
+
+# ---- the three wedge subclasses --------------------------------------------
+
+class GrenkeChessOpen(Series):
+    series_id = "grenke-chess-open"
+    name = "Grenke Chess Open"
+    edition_numbered = False
+    region = "national"
+    city = "Karlsruhe"
+    venue = "Karlsruhe Congress Center"
+    organizer = "Schachzentrum Baden-Baden e.V."
+    source_url = "https://www.grenkechessopen.de/"
+    span_days = 4
+    n_rounds = 9
+
+    def predict(self, year, records, *, today=None):
+        start = easter(year) - timedelta(days=3)        # Maundy Thursday
+        return self._edition(year, start, start + timedelta(days=4), today=today)  # -> Easter Monday
+
+    def fetch(self, year, *, page=None, feed_events=None):
+        return jsonld_edition(self.source_url, year, page=page)
+
+
+class HaraldLieb(Series):
+    series_id = "harald-lieb-gedenkturnier"
+    name = "Harald-Lieb-Gedenkturnier"
+    kind = "memorial"
+    organizer = "SK Zehlendorf"
+    venue = "Hans-Rosenthal-Haus, Berlin-Zehlendorf"
+    schedule_format = "weekly"
+    n_rounds = 7
+    source_url = "https://skzehlendorf.de/turniere/harald-lieb-gedenkturnier/"
+
+    def predict(self, year, records, *, today=None):
+        prev = self.latest_edition(records)
+        edition = prev["edition"] + (year - date.fromisoformat(prev["start_date"]).year) \
+            if prev and prev.get("edition") else None
+        thursdays = thursdays_from_mid_may(year, self.n_rounds)
+        return self._edition(year, thursdays[0], thursdays[-1], edition=edition,
+                             rounds=thursdays, today=today)
+
+    def fetch(self, year, *, text=None, landing=None, feed_events=None):
+        # test/offline: parse injected pdftotext output directly. live: read the landing page,
+        # resolve THIS year's Ausschreibung PDF link, then download + parse it.
+        if text is not None:
+            return pdf_edition(self.source_url, year, text=text)
+        page = landing if landing is not None else http_page(self.source_url)
+        pdf_url = pdf_link_for(page, year)
+        return pdf_edition(pdf_url, year) if pdf_url else None
+
+
+class LichtenbergerSommer(Series):
+    series_id = "lichtenberger-sommer"
+    name = "Lichtenberger Sommer"
+    organizer = "Schachfreunde Berlin 1903 / SV Friesen Lichtenberg"
+    venue = "Tribünenhalle Trabrennbahn Karlshorst"
+    source_url = "https://friesen-lichtenberg.de/lichtenberger-sommer/"
+    iso_week = 32
+    span_days = 8
+    n_rounds = 9
+
+    def fetch(self, year, *, page=None, feed_events=None):
+        return html_edition(self.source_url, year, page=page)
+
+
+REGISTRY = [GrenkeChessOpen(), HaraldLieb(), LichtenbergerSommer()]
+
+
+def registry_by_id():
+    return {s.series_id: s for s in REGISTRY}
+
+
+# ---- confirm core (testable: inject `reality` instead of a live fetch) ------
+
+def confirm_command(series, year, records, *, reality=None):
+    """One promote/insert command for a series+year, or None if no real edition was found.
+
+    reality = an injected fetch() result (the backtest passes the captured-fixture dates); when
+    None, a live series.fetch(year) runs. Returns {"op","id","fields"} — never writes.
+    """
+    found = reality if reality is not None else series.fetch(year)
+    if not found:
+        return None
+    rid = f"{series.series_id}-{year}"
+    fields = {"status": "confirmed", "start_date": found["start_date"], "end_date": found["end_date"]}
+    if found.get("rounds"):
+        fields["rounds"] = found["rounds"]
+    existing = next((r for r in records if r["id"] == rid), None)
+    op = "set" if existing is not None else "insert"
+    return {"op": op, "id": rid, "fields": fields, "found": found}
+
+
+# ---- CLI verbs --------------------------------------------------------------
+
+def _horizon_years(base_year, series):
+    return range(base_year, base_year + series.horizon_years + 1)
+
+
+def cmd_predict(apply=False):
+    records = load()
+    existing = {r["id"] for r in records}
+    today = date.today().isoformat()
+    base = date.today().year
+    new = []
+    for s in REGISTRY:
+        for year in _horizon_years(base, s):
+            rid = f"{s.series_id}-{year}"
+            if rid in existing:
+                continue
+            rec = s.predict(year, records)
+            if rec and rec["start_date"] >= today:   # forecast the future, never backfill a past edition
+                new.append(rec)
+                existing.add(rid)
+    print(f"# {len(new)} new predicted edition(s) across {len(REGISTRY)} series", file=sys.stderr)
+    if apply and new:
+        for rec in new:
+            records.append(rec)
+        add._write(add._sorted(records))
+        load(add.DATA)
+        print(f"inserted {', '.join(r['id'] for r in new)}; now {len(records)} records", file=sys.stderr)
+    else:
+        print(json.dumps(new, ensure_ascii=False, indent=2))
+    return new
+
+
+def _fmt_set(cmd):
+    parts = [f"{k}={json.dumps(v, ensure_ascii=False)}" if not isinstance(v, str) else f"{k}={v}"
+             for k, v in cmd["fields"].items()]
+    verb = "set " + cmd["id"] if cmd["op"] == "set" else "insert"
+    return f"python3 -m bcc.add {verb} " + " ".join(parts)
+
+
+def cmd_confirm(apply=False):
+    records = load()
+    cmds = []
+    base = date.today().year
+    for s in REGISTRY:
+        for year in _horizon_years(base, s):
+            try:
+                cmd = confirm_command(s, year, records)
+            except Exception as e:
+                print(f"# {s.series_id} {year}: fetch failed ({e})", file=sys.stderr)
+                continue
+            if cmd:
+                cmds.append(cmd)
+    for cmd in cmds:
+        if cmd["op"] == "set":
+            print(_fmt_set(cmd))
+        else:
+            print(f"# no expected record for {cmd['id']} — real edition found: {cmd['fields']}")
+    if not cmds:
+        print("# confirm: no machine-readable real editions found this run", file=sys.stderr)
+    if apply:
+        for cmd in cmds:
+            if cmd["op"] == "set":
+                rec = next(r for r in records if r["id"] == cmd["id"])
+                rec.update(cmd["fields"])
+        for r in records:
+            validate(r)
+        add._write(add._sorted(records))
+        load(add.DATA)
+        print(f"# applied {sum(1 for c in cmds if c['op']=='set')} promotion(s)", file=sys.stderr)
+    return cmds
+
+
+def cmd_missing():
+    records = load()
+    by_id = {r["id"]: r for r in records}
+    known = registry_by_id()
+    lines = []
+    base = date.today().year
+    for s in REGISTRY:
+        # a series whose fetch is manual-only (feed default + not on the feed counts at run time)
+        upcoming = [y for y in _horizon_years(base, s) if f"{s.series_id}-{y}" in by_id]
+        if not upcoming:
+            lines.append(f"- {s.series_id}: no upcoming edition in the {s.horizon_years}-year horizon")
+        if s.n_rounds is None:
+            lines.append(f"- {s.series_id}: round count (n_rounds) unknown")
+        for y in _horizon_years(base, s):
+            rec = by_id.get(f"{s.series_id}-{y}")
+            if rec and rec.get("status") == "expected":
+                gaps = [f for f in ("rounds", "prize_pool", "registration", "source_url")
+                        if f not in rec]
+                lines.append(f"- {rec['id']}: expected; still to fill: {', '.join(gaps) or '(complete)'}"
+                             f"{'  [tagged_by:auto]' if rec.get('tagged_by') == 'auto' else ''}")
+    print("MISSING / TO CONFIRM BY HAND\n" + ("\n".join(lines) if lines else "  (nothing outstanding)"))
+    return lines
+
+
+def cmd_suggest(apply=False):
+    """Feed events matching NO known series -> candidates for a new subclass (the scout)."""
+    from . import ingest
+    known = {norm_name(s.name) for s in REGISTRY}
+    events = fetch_all()
+    groups = ingest.dedup(events)
+    today = date.today().isoformat()
+    unknown = [g for g in groups if norm_name(g["evs"][0].name) not in known]
+    drafts = [ingest.draft(g, today) for g in unknown]
+    print(f"# {len(groups)} feed groups -> {len(drafts)} match no known series (candidates for a subclass)",
+          file=sys.stderr)
+    print(json.dumps(drafts, ensure_ascii=False, indent=2))
+    return drafts
+
+
+def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    apply = "--apply" in argv
+    argv = [a for a in argv if a != "--apply"]
+    cmd = argv[0] if argv else ""
+    if cmd == "predict":
+        cmd_predict(apply)
+    elif cmd == "confirm":
+        cmd_confirm(apply)
+    elif cmd == "missing":
+        cmd_missing()
+    elif cmd == "suggest":
+        cmd_suggest(apply)
+    else:
+        sys.exit(__doc__)
+
+
+if __name__ == "__main__":
+    main()
