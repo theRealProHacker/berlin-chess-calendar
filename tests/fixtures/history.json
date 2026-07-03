@@ -1,0 +1,163 @@
+{
+  "_comment": "Real, verified past editions of the 3 wedge series. Ground-truth for the predictor backtest (design 2026-07-01, Benchmark section). Dates from independent sources (Wikipedia, organizer announcement PDFs, organizer site + Wayback), NOT formula-derived. Separate from data/tournaments.json.",
+  "series": {
+    "grenke-chess-open": {
+      "name": "Grenke Chess Open",
+      "series_type": "year",
+      "n_rounds": 9,
+      "pattern": "Maundy Thursday (Gruendonnerstag) to Easter Monday, Karlsruhe. Not held 2020-2023 (COVID + hiatus); resumed 2024.",
+      "editions": [
+        {
+          "year": 2016,
+          "start_date": "2016-03-24",
+          "end_date": "2016-03-28",
+          "source": "https://de.wikipedia.org/wiki/Grenke_Chess_Open"
+        },
+        {
+          "year": 2017,
+          "start_date": "2017-04-13",
+          "end_date": "2017-04-17",
+          "source": "https://de.wikipedia.org/wiki/Grenke_Chess_Open"
+        },
+        {
+          "year": 2018,
+          "start_date": "2018-03-29",
+          "end_date": "2018-04-02",
+          "source": "https://de.wikipedia.org/wiki/Grenke_Chess_Open"
+        },
+        {
+          "year": 2019,
+          "start_date": "2019-04-18",
+          "end_date": "2019-04-22",
+          "source": "https://de.wikipedia.org/wiki/Grenke_Chess_Open"
+        },
+        {
+          "year": 2024,
+          "start_date": "2024-03-28",
+          "end_date": "2024-04-01",
+          "source": "https://de.wikipedia.org/wiki/Grenke_Chess_Open"
+        },
+        {
+          "year": 2025,
+          "start_date": "2025-04-17",
+          "end_date": "2025-04-21",
+          "source": "https://de.wikipedia.org/wiki/Grenke_Chess_Open"
+        },
+        {
+          "year": 2026,
+          "start_date": "2026-04-02",
+          "end_date": "2026-04-06",
+          "source": "https://www.grenkechessopen.de/"
+        }
+      ]
+    },
+    "harald-lieb-gedenkturnier": {
+      "name": "Harald-Lieb-Gedenkturnier",
+      "series_type": "edition",
+      "n_rounds": 7,
+      "pattern": "7 consecutive Thursday evenings, late May to mid July, Hans-Rosenthal-Haus Berlin-Zehlendorf. Start Thursday drifts ~2 weeks year to year (Ascension/Pentecost).",
+      "editions": [
+        {
+          "year": 2023,
+          "edition": 7,
+          "start_date": "2023-05-25",
+          "end_date": "2023-07-06",
+          "rounds": [
+            "2023-05-25",
+            "2023-06-01",
+            "2023-06-08",
+            "2023-06-15",
+            "2023-06-22",
+            "2023-06-29",
+            "2023-07-06"
+          ],
+          "source": "https://skzehlendorf.de/storage/2023/04/Open_2023_9015.pdf"
+        },
+        {
+          "year": 2024,
+          "edition": 8,
+          "start_date": "2024-05-30",
+          "end_date": "2024-07-11",
+          "rounds": [
+            "2024-05-30",
+            "2024-06-06",
+            "2024-06-13",
+            "2024-06-20",
+            "2024-06-27",
+            "2024-07-04",
+            "2024-07-11"
+          ],
+          "source": "https://skzehlendorf.de/storage/2024/02/Ausschreibung-8_Harald_Lieb_Gedenkturnier.pdf"
+        },
+        {
+          "year": 2025,
+          "edition": 9,
+          "start_date": "2025-06-05",
+          "end_date": "2025-07-17",
+          "rounds": [
+            "2025-06-05",
+            "2025-06-12",
+            "2025-06-19",
+            "2025-06-26",
+            "2025-07-03",
+            "2025-07-10",
+            "2025-07-17"
+          ],
+          "source": "https://skzehlendorf.de/storage/2025/03/9_Harald_Lieb_Gedenkturnier-1.pdf"
+        },
+        {
+          "year": 2026,
+          "edition": 10,
+          "start_date": "2026-05-21",
+          "end_date": "2026-07-02",
+          "rounds": [
+            "2026-05-21",
+            "2026-05-28",
+            "2026-06-04",
+            "2026-06-11",
+            "2026-06-18",
+            "2026-06-25",
+            "2026-07-02"
+          ],
+          "source": "https://skzehlendorf.de/storage/2026/03/HLG_Open_2026.pdf"
+        }
+      ]
+    },
+    "lichtenberger-sommer": {
+      "name": "Lichtenberger Sommer",
+      "series_type": "edition",
+      "n_rounds": 9,
+      "pattern": "9-round open over ~9 days (Sat start), Tribuenenhalle Trabrennbahn Karlshorst. Usually ISO week 32; 2025 slipped to week 34.",
+      "editions": [
+        {
+          "year": 2023,
+          "edition": 19,
+          "start_date": "2023-08-12",
+          "end_date": "2023-08-20",
+          "source": "https://web.archive.org/web/20231004185806/http://friesen-lichtenberg.de/Lichtenberger_Sommer/LS_23/lichtenberger_sommer_2023.htm"
+        },
+        {
+          "year": 2024,
+          "edition": 20,
+          "start_date": "2024-08-10",
+          "end_date": "2024-08-18",
+          "source": "https://web.archive.org/web/20240721100232/http://www.friesen-lichtenberg.de/Lichtenberger_Sommer/LS_24/lichtenberger_sommer_2024.htm"
+        },
+        {
+          "year": 2025,
+          "edition": 21,
+          "start_date": "2025-08-23",
+          "end_date": "2025-08-31",
+          "source": "https://web.archive.org/web/20250807032030/https://friesen-lichtenberg.de/lichtenberger-sommer/"
+        },
+        {
+          "year": 2026,
+          "edition": 22,
+          "start_date": "2026-08-08",
+          "end_date": "2026-08-16",
+          "source": "https://friesen-lichtenberg.de/lichtenberger-sommer/"
+        }
+      ]
+    }
+  }
+}
