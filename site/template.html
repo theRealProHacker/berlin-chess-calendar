@@ -303,6 +303,7 @@ window.TOURNAMENTS = __DATA__;
   }
 
   // ---- distinct values present in data, per axis (data-driven filter options) ----
+  function ageKey(v){ if(v==="open") return -1; var m=/^([UÜ])(\d+)$/.exec(v); return m?(m[1]==="U"?0:1000)+parseInt(m[2],10):9999; }
   function optionsFor(ax){
     var field=AXIS_FIELD[ax], set=[];
     T.forEach(function(t){
@@ -310,6 +311,7 @@ window.TOURNAMENTS = __DATA__;
       if(Array.isArray(v)) v.forEach(function(x){ if(set.indexOf(x)<0)set.push(x); });
       else if(v!=null && set.indexOf(v)<0) set.push(v);
     });
+    if(ax==="age") set.sort(function(a,b){return ageKey(a)-ageKey(b);});  // Offen, U8, U10 … U25, Ü60…
     return set;
   }
 
