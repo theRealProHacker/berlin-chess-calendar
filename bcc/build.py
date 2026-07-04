@@ -202,15 +202,33 @@ def _vevent(t):
     return lines
 
 
-def build_ics(tournaments, today=None):
+def visible(tournaments, today=None):
+    """The records the site shows AND writes to the .ics — kept identical so a subscription matches
+    exactly what the list shows. Drop stale + events ended >30 days ago, then render a predicted
+    (expected) edition only for a series with NO confirmed edition in view (one predict per series,
+    the earliest). `site/template.html` render() mirrors this rule.
+    """
     today = today or date.today()
     cutoff = today - timedelta(days=30)
+    live = sorted((t for t in tournaments
+                   if t["status"] != "stale" and date.fromisoformat(t["end_date"]) >= cutoff),
+                  key=lambda t: (t["start_date"], t["id"]))
+    shown = {t.get("series") for t in live if t["status"] != "expected"}
+    out, predicted = [], set()
+    for t in live:
+        if t["status"] != "expected":
+            out.append(t)
+        elif t.get("series") not in shown and t.get("series") not in predicted:
+            predicted.add(t.get("series"))
+            out.append(t)
+    return out
+
+
+def build_ics(tournaments, today=None):
     lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Berliner Schachkalender//bcc//DE",
              "CALSCALE:GREGORIAN", "METHOD:PUBLISH", "X-WR-CALNAME:Berliner Schachkalender",
              "X-WR-TIMEZONE:Europe/Berlin"]
-    for t in sorted(tournaments, key=lambda x: (x["start_date"], x["id"])):
-        if t["status"] == "stale" or date.fromisoformat(t["end_date"]) < cutoff:
-            continue
+    for t in visible(tournaments, today):
         lines += _vevent(t)
     lines.append("END:VCALENDAR")
     return "\r\n".join(_fold(ln) for ln in lines) + "\r\n"

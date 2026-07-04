@@ -415,7 +415,19 @@ window.TOURNAMENTS = __DATA__;
     var list=$("list");
     // clear everything except the empty node
     [].slice.call(list.querySelectorAll(".month,.card")).forEach(function(n){n.remove();});
-    var items=T.filter(matches).slice().sort(function(a,b){return a.start_date<b.start_date?-1:a.start_date>b.start_date?1:(a.id<b.id?-1:1);});
+    // MUST mirror bcc.build.visible() exactly, so the .ics subscription matches what's listed:
+    // drop stale + events ended >30 days ago, then render a predicted (expected) edition only for a
+    // series with NO confirmed edition in view (one predict per series, the earliest).
+    var cutoff=(function(){var d=new Date();d.setDate(d.getDate()-30);return d.toISOString().slice(0,10);})();
+    var items=T.filter(matches).filter(function(t){return t.status!=="stale"&&t.end_date>=cutoff;})
+      .slice().sort(function(a,b){return a.start_date<b.start_date?-1:a.start_date>b.start_date?1:(a.id<b.id?-1:1);});
+    var shownSeries={}, predicted={};
+    items.forEach(function(t){ if(t.status!=="expected") shownSeries[t.series]=true; });
+    items=items.filter(function(t){
+      if(t.status!=="expected") return true;
+      if(shownSeries[t.series]||predicted[t.series]) return false;
+      predicted[t.series]=true; return true;
+    });
     var emptyNode=$("empty");
     var curSection=null;
     items.forEach(function(t){

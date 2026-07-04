@@ -103,6 +103,29 @@ class TestLoad(unittest.TestCase):
             os.unlink(p)
 
 
+class TestVisible(unittest.TestCase):
+    """visible() = what the site lists AND writes to the .ics — must stay identical."""
+
+    def _recs(self):
+        return [
+            mk(id="a-2026", series="a", status="confirmed", start_date="2026-08-01", end_date="2026-08-02"),
+            mk(id="a-2027", series="a", status="expected", start_date="2027-08-01", end_date="2027-08-02"),
+            mk(id="b-2027", series="b", status="expected", start_date="2027-05-01", end_date="2027-05-02"),
+            mk(id="b-2028", series="b", status="expected", start_date="2028-05-01", end_date="2028-05-02"),
+        ]
+
+    def test_confirmed_suppresses_its_predicts_but_unshown_series_keeps_one(self):
+        vis = [t["id"] for t in build.visible(self._recs(), TODAY)]
+        self.assertEqual(vis, ["a-2026", "b-2027"])   # confirmed a; earliest predict of unshown b
+        self.assertNotIn("a-2027", vis)               # a is shown -> its predict hidden
+        self.assertNotIn("b-2028", vis)               # only one predict per series
+
+    def test_ics_matches_visible_exactly(self):
+        recs = self._recs()
+        self.assertEqual(build_ics(recs, today=TODAY).count("BEGIN:VEVENT"),
+                         len(build.visible(recs, TODAY)))
+
+
 class TestIcs(unittest.TestCase):
     def test_dtend_exclusive(self):
         ics = build_ics([mk()], today=TODAY)
