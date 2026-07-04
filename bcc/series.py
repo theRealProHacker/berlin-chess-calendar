@@ -40,8 +40,9 @@ from datetime import date, timedelta
 
 from . import add
 from .build import ROOT, load, validate
-from .feeds import (_MONTH, _MONTHS, _meta_description, cached_get, fetch_all, fetch_youth,
-                    jsonld_event_dates, norm_name, parse_de_date, set_refetch, strip_html)
+from .feeds import (_MONTH, _MONTHS, _meta_description, cached_get, chess_results_search,
+                    fetch_all, fetch_youth, jsonld_event_dates, norm_name, parse_de_date,
+                    set_refetch, strip_html)
 
 
 # ---- date math (stdlib computus, no dependency) -----------------------------
@@ -117,6 +118,7 @@ class Series:
     venue = None                      # the specific playing site, never a bare district
     city = "Berlin"
     source_url = None
+    cr_organizer = None               # chess-results organizer-PERSON (stable per series), a match hint
     kind = "open"
     variant = "standard"
     time_control = "classical"
@@ -207,13 +209,24 @@ class Series:
         end = start + timedelta(days=self.span_days)
         return self._edition(year, start, end, edition=edition, today=today)
 
-    # ---- confirmation source (default: find me on the RSS feed) ----
-    def fetch(self, year, *, feed_events=None) -> dict | None:
+    # ---- confirmation source ----
+    def fetch(self, year, *, feed_events=None, cr=None) -> dict | None:
         """Return the real edition's dates {start_date,end_date[,rounds][,source_url]} or None.
 
-        Default: the BSV/DSB RSS by normalized name, within a loose slot around the target year.
-        Override for a bespoke machine source; return None to declare manual-only.
+        A Berlin series confirms from chess-results first (the forward-looking DB), then falls
+        back to the RSS feed. Override for a bespoke machine source; return None = manual-only.
         """
+        return self._cr_fetch(year, rows=cr) or self._feed_fetch(year, feed_events=feed_events)
+
+    def _cr_fetch(self, year, *, rows=None) -> dict | None:
+        """Match this series on chess-results (Berlin series only), by name-stem + organizer-person."""
+        if self.region != "berlin":
+            return None
+        rows = rows if rows is not None else cr_rows(year)
+        return cr_match(rows, self.name, year, organizer=self.cr_organizer)
+
+    def _feed_fetch(self, year, *, feed_events=None) -> dict | None:
+        """The BSV/DSB RSS by normalized name within the target year (near-term only)."""
         evs = feed_events if feed_events is not None else fetch_all()
         target = norm_name(self.name)
         hits = [e for e in evs if norm_name(e.name) == target and e.start[:4] == str(year)]
@@ -359,6 +372,50 @@ def html_edition(url, year, *, page=None) -> dict | None:
     return None
 
 
+_CR_DATE = re.compile(r"\b(\d{4})/(\d{2})/(\d{2})\b")
+
+
+def _parse_cr_rows(html):
+    """Parse a chess-results search-results table -> [{tnr,name,start,end,text}]. Cells are sparse
+    (empty ones omitted), so match by content: the tnr-link cell is the name, the first two
+    YYYY/MM/DD are from/to, and `text` is the whole row (for an organizer substring match)."""
+    out = []
+    for tr in re.findall(r"<tr[^>]*>(.*?)</tr>", html, re.S):
+        m = re.search(r"tnr(\d+)\.aspx", tr)
+        dates = _CR_DATE.findall(tr)
+        if not m or len(dates) < 2:
+            continue
+        cell = re.search(r"<td[^>]*>((?:(?!</td>).)*?tnr\d+\.aspx.*?)</td>", tr, re.S)
+        name = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", cell.group(1))).strip() if cell else ""
+        out.append({"tnr": m.group(1), "name": name,
+                    "start": "%s-%s-%s" % dates[0], "end": "%s-%s-%s" % dates[1],
+                    "text": re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", tr)).strip()})
+    return out
+
+
+def cr_match(rows, name, year, *, organizer=None) -> dict | None:
+    """Pick the chess-results row for `name`/`year`. The name-stem is the SELECTOR (so we grab the
+    right event); the organizer-person only DISAMBIGUATES when several rows share the stem — it is
+    never a standalone match (one organizer runs many events, so org-only would false-match the
+    wrong one). Earliest start wins remaining ties (age-group sub-tournaments share the dates)."""
+    target = norm_name(name)
+    cands = [r for r in rows if r["start"][:4] == str(year) and target in norm_name(r["name"])]
+    if organizer and len(cands) > 1:
+        org = norm_name(organizer)
+        narrowed = [r for r in cands if org in norm_name(r["text"])]
+        if narrowed:
+            cands = narrowed
+    if not cands:
+        return None
+    r = min(cands, key=lambda x: x["start"])
+    return {"start_date": r["start"], "end_date": r["end"],
+            "source_url": f"https://chess-results.com/tnr{r['tnr']}.aspx?lan=1"}
+
+
+def cr_rows(year):
+    return _parse_cr_rows(chess_results_search(year))
+
+
 def wp_edition(name, year, *, raws=None) -> dict | None:
     """Youth confirm: find this series' real edition for `year` on the schachjugend WordPress
     REST source, matched by normalized name. The WP source lists only UPCOMING events, so this
@@ -439,11 +496,13 @@ class LichtenbergerSommer(Series):
 
 
 class YouthSeries(Series):
-    """Berlin youth series: confirm from the schachjugend WordPress source, not the RSS feed."""
+    """Berlin youth series: chess-results first (forward-looking), then the schachjugend WordPress
+    source (near-term). Most Berlin youth events are organized by 'Olaf Sill' on chess-results."""
     kind = "youth"
+    cr_organizer = "Olaf Sill"
 
-    def fetch(self, year, *, raws=None, feed_events=None):
-        return wp_edition(self.name, year, raws=raws)
+    def fetch(self, year, *, raws=None, cr=None, feed_events=None):
+        return self._cr_fetch(year, rows=cr) or wp_edition(self.name, year, raws=raws)
 
 
 # ---- ordinary recurring series (thin subclasses; predict + default fetch inherited) ----
@@ -459,6 +518,10 @@ class AbrafaxeTurnier(YouthSeries):
     organizer = 'SC Borussia Lichtenberg (Schach-Abrafaxe)'
     source_url = 'https://www.abrafaxe-kinderschachturnier.de/'
     n_rounds = 7
+    anchor_month = 6            # actually runs mid-June (2024-06-08, 2025-06-21), not late May
+    anchor_week = 2
+    weekday = 6
+    cr_organizer = 'Thomas Neumann'   # not Olaf Sill; own organizer on chess-results
 
 class BerlinerJugendblitzmeisterschaft(YouthSeries):
     series_id = 'berliner-jugendblitzmeisterschaft'

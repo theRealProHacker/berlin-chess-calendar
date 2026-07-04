@@ -256,6 +256,34 @@ class TestBacktest(unittest.TestCase):
             self.assertEqual(pred["start_date"], ts, f"Grenke {year} predict must be exact")
 
 
+class TestChessResults(unittest.TestCase):
+    """Parse + match the chess-results Berlin search (real captured 2025 results)."""
+
+    def setUp(self):
+        self.rows = S._parse_cr_rows((FX / "chess-results-berlin-2025.html").read_text(encoding="utf-8"))
+
+    def test_parse_finds_rows(self):
+        self.assertGreater(len(self.rows), 20)
+        self.assertTrue(all(r["tnr"] and r["start"] <= r["end"] for r in self.rows))
+
+    def test_name_match_adult_and_youth(self):
+        self.assertEqual(S.cr_match(self.rows, "Lichtenberger Sommer", 2025)["start_date"], "2025-08-23")
+        self.assertEqual(S.cr_match(self.rows, "Kindersommeropen", 2025)["start_date"], "2025-09-27")
+        self.assertEqual(S.cr_match(self.rows, "Jugendherbstopen", 2025)["start_date"], "2025-11-29")
+
+    def test_organizer_never_matches_alone(self):
+        # a series NOT present must not false-match another Olaf-Sill event just via the organizer
+        self.assertIsNone(S.cr_match(self.rows, "Voellig Erfundenes Turnier", 2025, organizer="Olaf Sill"))
+
+    def test_wrong_year_is_none(self):
+        self.assertIsNone(S.cr_match(self.rows, "Kindersommeropen", 2030))
+
+    def test_series_fetch_prefers_chess_results(self):
+        got = S.Kindersommeropen().fetch(2025, cr=self.rows, raws=[])   # cr first, empty WP fallback
+        self.assertEqual((got["start_date"], got["end_date"]), ("2025-09-27", "2025-09-27"))
+        self.assertIn("chess-results.com/tnr", got["source_url"])
+
+
 class TestCache(unittest.TestCase):
     """The 2-week snapshot cache: TTL reuse, --refetch force, offline-only."""
 

@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import hashlib
 import html
+import http.cookiejar
 import json
 import re
 import sys
+import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
 from urllib.parse import urljoin
@@ -171,6 +173,54 @@ def cached_get(url, *, binary=False, ttl_days=CACHE_TTL_DAYS, today=None, offlin
 
 def http_get(url):
     return cached_get(url)
+
+
+# ---- chess-results.com tournament search (ASP.NET WebForms) ------------------
+# The German tournament DB (schachbund's Turnierdatenbank redirects here). No API/JSON/iCal;
+# the durable surface is the search form: GET it to harvest the __VIEWSTATE tokens + session
+# cookie, then POST Ort=Berlin + Country=GER + a date window. Results carry name/from/to/
+# organizer/tnr, so one POST resolves a whole year's Berlin editions. Matched in bcc.series
+# by organizer-person + name-stem within the predictor's date window (organizer names are
+# stable per series across years; the club name is NOT in the organizer field).
+CR_FORM = "https://chess-results.com/TurnierSuche.aspx?lan=1"
+
+
+def _cr_hidden(html_text, name):
+    m = re.search(rf'(?:id|name)="{re.escape(name)}"[^>]*\bvalue="([^"]*)"', html_text)
+    return m.group(1) if m else ""
+
+
+def cr_search_html(von, bis, ort="Berlin", land="GER", rows="0"):
+    """Run the chess-results Tournament Search (von/bis = 'YYYY-MM-DD') and return the results HTML.
+
+    Drives the ASP.NET postback: GET the form (follows the 302 to an s1/s2/s3 node + sets the
+    session cookie), scrape the viewstate tokens, POST them back with the search fields.
+    """
+    cj = http.cookiejar.CookieJar()
+    op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
+    op.addheaders = [("User-Agent", UA), ("Accept-Language", "de-DE,de;q=0.9")]
+    with op.open(CR_FORM, timeout=30) as r:  # nosec - fixed https url
+        form_url, page = r.geturl(), r.read().decode("utf-8", "replace")
+    body = urllib.parse.urlencode({
+        "__VIEWSTATE": _cr_hidden(page, "__VIEWSTATE"),
+        "__VIEWSTATEGENERATOR": _cr_hidden(page, "__VIEWSTATEGENERATOR"),
+        "__EVENTVALIDATION": _cr_hidden(page, "__EVENTVALIDATION"),
+        "ctl00$P1$txt_bez": "", "ctl00$P1$txt_veranstalter": "", "ctl00$P1$txt_ort": ort,
+        "ctl00$P1$combo_land": land, "ctl00$P1$txt_von_tag": von, "ctl00$P1$txt_bis_tag": bis,
+        "ctl00$P1$combo_sort": "3", "ctl00$P1$combo_anzahl_zeilen": rows,
+        "ctl00$P1$cb_suchen": "Search",
+    }).encode()
+    req = urllib.request.Request(form_url, data=body, headers={
+        "User-Agent": UA, "Content-Type": "application/x-www-form-urlencoded"})
+    with op.open(req, timeout=45) as r:  # nosec - fixed https node url
+        return r.read()
+
+
+def chess_results_search(year, *, ort="Berlin", land="GER", today=None):
+    """A whole year's `ort` tournaments from chess-results, through the 2-week snapshot cache."""
+    key = f"chess-results:{ort}:{year}"
+    return cached_get(key, today=today,   # rows="2" = 500-row cap so a full year is never truncated
+                      fetcher=lambda _u: cr_search_html(f"{year}-01-01", f"{year}-12-31", ort, land, rows="2"))
 
 
 def fetch_all(fixtures=False):
