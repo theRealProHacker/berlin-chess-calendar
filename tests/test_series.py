@@ -199,6 +199,8 @@ class TestBacktest(unittest.TestCase):
         total = 0
         for series in S.REGISTRY:
             sid = series.series_id
+            if sid not in HIST:                 # only the wedge series have captured backtest history
+                continue
             for year in self.YEARS:
                 total += 1
                 recs = _records_before(sid, year)

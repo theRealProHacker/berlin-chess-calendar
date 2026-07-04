@@ -402,7 +402,308 @@ class LichtenbergerSommer(Series):
         return html_edition(self.source_url, year, page=page)
 
 
-REGISTRY = [GrenkeChessOpen(), HaraldLieb(), LichtenbergerSommer()]
+# ---- ordinary recurring series (thin subclasses; predict + default fetch inherited) ----
+# Axes derived from each series' existing edition in data/tournaments.json. Season-long team
+# leagues (BMM, BJMM) and the ~10 national championships stay data-adds: no stable annual slot.
+
+class AbrafaxeTurnier(Series):
+    series_id = 'abrafaxe-turnier'
+    name = 'Abrafaxe-Turnier'
+    age_limit = ('U8', 'U10', 'U12', 'U14')
+    kind = 'youth'
+    time_control = 'rapid'
+    organizer = 'SC Borussia Lichtenberg (Schach-Abrafaxe)'
+    source_url = 'https://www.abrafaxe-kinderschachturnier.de/'
+    n_rounds = 7
+
+class BerlinerJugendblitzmeisterschaft(Series):
+    series_id = 'berliner-jugendblitzmeisterschaft'
+    name = 'Berliner Jugendblitzmeisterschaft'
+    age_limit = ('U8', 'U10', 'U12', 'U14', 'U16', 'U18', 'U25')
+    kind = 'youth'
+    time_control = 'blitz'
+    edition_numbered = False
+    organizer = 'Schachjugend in Berlin'
+    source_url = 'https://www.schachjugend-in-berlin.de/'
+    n_rounds = 11
+
+class BerlinerJugendeinzelmeisterschaftBjem(Series):
+    series_id = 'berliner-jugendeinzelmeisterschaft-bjem'
+    name = 'Berliner Jugendeinzelmeisterschaft (BJEM)'
+    age_limit = ('U8', 'U10', 'U12', 'U14', 'U16', 'U18')
+    kind = 'youth'
+    edition_numbered = False
+    organizer = 'Schachjugend in Berlin'
+    venue = 'Andreas-Gymnasium, Berlin-Friedrichshain'
+    source_url = 'https://www.schachjugend-in-berlin.de/'
+    span_days = 6
+
+class BerlinerJugendeinzelmeisterschaftDerMaedchenBjemw(Series):
+    series_id = 'berliner-jugendeinzelmeisterschaft-der-maedchen-bjemw'
+    name = 'Berliner Jugendeinzelmeisterschaft der Mädchen (BJEMw)'
+    age_limit = ('U8', 'U10', 'U12', 'U14', 'U16', 'U18')
+    kind = 'youth'
+    schedule_format = 'other'
+    edition_numbered = False
+    organizer = 'Schachjugend in Berlin'
+    source_url = 'https://www.schachjugend-in-berlin.de/'
+    span_days = 43
+    n_rounds = 3
+
+class BerlinerJugendschnellschachmeisterschaft(Series):
+    series_id = 'berliner-jugendschnellschachmeisterschaft'
+    name = 'Berliner Jugendschnellschachmeisterschaft'
+    age_limit = ('U8', 'U10', 'U12', 'U14', 'U16', 'U18', 'U25')
+    kind = 'youth'
+    time_control = 'rapid'
+    edition_numbered = False
+    organizer = 'Schachjugend in Berlin'
+    source_url = 'https://www.schachjugend-in-berlin.de/'
+    n_rounds = 7
+
+class BerlinerSchnellschachEm(Series):
+    series_id = 'berliner-schnellschach-em'
+    name = 'Berliner Schnellschach-Einzelmeisterschaft'
+    kind = 'championship'
+    time_control = 'rapid'
+    edition_numbered = False
+    organizer = 'Berliner Schachverband'
+    source_url = 'https://www.berlinerschachverband.de/termin/berliner-schnellschach-em-2026.html'
+
+class BerlinerSchnellschachMm(Series):
+    series_id = 'berliner-schnellschach-mm'
+    name = 'Berliner Schnellschach-Mannschaftsmeisterschaft'
+    kind = 'championship'
+    time_control = 'rapid'
+    participation = 'team'
+    edition_numbered = False
+    organizer = 'Berliner Schachverband'
+    source_url = 'https://www.berlinerschachverband.de/termin/berliner-schnellschach-mm-2026.html'
+
+class BerlinerTandemschachTreffen(Series):
+    series_id = 'berliner-tandemschach-treffen'
+    name = 'Berliner Tandemschach-Treffen'
+    kind = 'festival'
+    variant = 'tandem'
+    time_control = 'blitz'
+    participation = 'duo'
+    edition_numbered = False
+    organizer = 'Bughouse Berlin'
+    source_url = 'https://www.schachbund.de/turnierdetails/berliner-tandemschach-treffen.html'
+    span_days = 3
+
+class InternationalesBerlinerTandemschachOpen(Series):
+    series_id = 'internationales-berliner-tandemschach-open'
+    name = 'Internationales Berliner Tandemschach-Open'
+    variant = 'tandem'
+    time_control = 'blitz'
+    participation = 'duo'
+    organizer = 'Bughouse Berlin'
+    source_url = 'https://www.schachbund.de/turnierdetails/22-internationales-berliner-tandemschach-open.html'
+
+class InternationalesEmanuelLaskerSchachfestival(Series):
+    series_id = 'internationales-emanuel-lasker-schachfestival'
+    name = 'Internationales Emanuel-Lasker-Schachfestival'
+    kind = 'festival'
+    region = 'nearby'
+    city = 'Barlinek, Polen'
+    source_url = 'https://www.berlinerschachverband.de/termin/7-internationales-emanuel-lasker-schachfestival.html'
+
+class JugendEloRapidU20(Series):
+    series_id = 'jugend-elo-rapid-u20'
+    name = 'Jugend-Elo-Rapid – U20'
+    age_limit = ('U20',)
+    kind = 'youth'
+    time_control = 'rapid'
+    edition_numbered = False
+    source_url = 'https://www.schachjugend-in-berlin.de/jugend-elo-rapid-u20-am-11-juli-2026/'
+
+class JugendMannschaftsopen(Series):
+    series_id = 'jugend-mannschaftsopen'
+    name = 'Jugend-Mannschaftsopen'
+    age_limit = ('U8', 'U10', 'U12', 'U14', 'U16', 'U18', 'U25')
+    kind = 'youth'
+    participation = 'team'
+    edition_numbered = False
+    organizer = 'Schachjugend in Berlin'
+    source_url = 'https://www.schachjugend-in-berlin.de/'
+    span_days = 1
+
+class Jugendherbstopen(Series):
+    series_id = 'jugendherbstopen'
+    name = 'Jugendherbstopen'
+    age_limit = ('U8', 'U10', 'U12', 'U14', 'U16', 'U18')
+    kind = 'youth'
+    edition_numbered = False
+    organizer = 'Schachjugend in Berlin'
+    venue = 'Andreas-Gymnasium, Berlin-Friedrichshain'
+    source_url = 'https://www.schachjugend-in-berlin.de/'
+    span_days = 1
+    n_rounds = 5
+
+class JugendschnellschachMannschaftsopen(Series):
+    series_id = 'jugendschnellschach-mannschaftsopen'
+    name = 'Jugendschnellschach-Mannschaftsopen'
+    age_limit = ('U8', 'U10', 'U12', 'U14', 'U16', 'U18', 'U25')
+    kind = 'youth'
+    time_control = 'rapid'
+    participation = 'team'
+    edition_numbered = False
+    organizer = 'Schachjugend in Berlin'
+    source_url = 'https://www.schachjugend-in-berlin.de/'
+    span_days = 1
+
+class Jugendsommeropen(Series):
+    series_id = 'jugendsommeropen'
+    name = 'Jugendsommeropen'
+    age_limit = ('U8', 'U10', 'U12', 'U14', 'U16', 'U18')
+    kind = 'youth'
+    edition_numbered = False
+    organizer = 'Schachjugend in Berlin'
+    venue = 'Andreas-Gymnasium, Berlin-Friedrichshain'
+    source_url = 'https://www.schachjugend-in-berlin.de/'
+    span_days = 1
+    n_rounds = 5
+
+class Jugendwinteropen(Series):
+    series_id = 'jugendwinteropen'
+    name = 'Jugendwinteropen'
+    age_limit = ('U25',)
+    kind = 'youth'
+    edition_numbered = False
+    organizer = 'Schachjugend in Berlin'
+    venue = 'Andreas-Gymnasium, Berlin-Friedrichshain'
+    source_url = 'https://www.schachjugend-in-berlin.de/'
+    span_days = 1
+    n_rounds = 7
+
+class Kinderfruehlingsturnier(Series):
+    series_id = 'kinderfruehlingsturnier'
+    name = 'Kinderfrühlingsturnier'
+    age_limit = ('U8', 'U10', 'U12')
+    kind = 'youth'
+    time_control = 'rapid'
+    edition_numbered = False
+    organizer = 'Schachjugend in Berlin'
+    venue = 'Andreas-Gymnasium, Berlin-Friedrichshain'
+    source_url = 'https://www.schachjugend-in-berlin.de/'
+    span_days = 1
+
+class Kinderherbstopen(Series):
+    series_id = 'kinderherbstopen'
+    name = 'Kinderherbstopen'
+    age_limit = ('U8', 'U10', 'U12')
+    kind = 'youth'
+    time_control = 'rapid'
+    edition_numbered = False
+    organizer = 'Schachjugend in Berlin'
+    venue = 'Andreas-Gymnasium, Berlin-Friedrichshain'
+    source_url = 'https://www.schachjugend-in-berlin.de/'
+    n_rounds = 5
+
+class Kindersommeropen(Series):
+    series_id = 'kindersommeropen'
+    name = 'Kindersommeropen'
+    age_limit = ('U8', 'U10', 'U12')
+    kind = 'youth'
+    time_control = 'rapid'
+    edition_numbered = False
+    organizer = 'Schachjugend in Berlin'
+    venue = 'Andreas-Gymnasium, Berlin-Friedrichshain'
+    source_url = 'https://www.schachjugend-in-berlin.de/'
+    n_rounds = 5
+
+class Kinderwinteropen(Series):
+    series_id = 'kinderwinteropen'
+    name = 'Kinderwinteropen'
+    age_limit = ('U8', 'U10', 'U12')
+    kind = 'youth'
+    time_control = 'rapid'
+    edition_numbered = False
+    organizer = 'Schachjugend in Berlin'
+    venue = 'Andreas-Gymnasium, Berlin-Friedrichshain'
+    source_url = 'https://www.schachjugend-in-berlin.de/'
+    n_rounds = 5
+
+class KreuzbergerSchachsommerWernerOttOpen(Series):
+    series_id = 'kreuzberger-schachsommer-werner-ott-open'
+    name = 'Kreuzberger Schachsommer – Werner-Ott-Open'
+    edition_numbered = False
+    organizer = 'SC Kreuzberg e.V.'
+    venue = 'SC Kreuzberg e.V., Haus des Sports, Böcklerstr. 1, 10969 Berlin-Kreuzberg'
+    source_url = 'https://www.schachbund.de/turnierdetails/kreuzberger-schachsommer-werner-ott-open-2026.html'
+    span_days = 8
+    n_rounds = 9
+
+class SpandauerWeihnachtsBlitz(Series):
+    series_id = 'spandauer-weihnachts-blitz'
+    name = 'Spandauer Weihnachts-Blitz'
+    time_control = 'blitz'
+    edition_numbered = False
+    venue = 'Bürgersaal, Rathaus Spandau, Carl-Schurz-Str. 2/6, 13597 Berlin'
+    source_url = 'https://www.schachbund.de/turnierdetails/spandauer-weihnachts-blitz-2026.html'
+
+class SpandauerWeihnachtsRapid(Series):
+    series_id = 'spandauer-weihnachts-rapid'
+    name = 'Spandauer Weihnachts-Rapid'
+    time_control = 'rapid'
+    edition_numbered = False
+    venue = 'Bürgersaal, Rathaus Spandau, Carl-Schurz-Str. 2/6, 13597 Berlin'
+    source_url = 'https://www.schachbund.de/turnierdetails/spandauer-weihnachts-rapid-2026.html'
+
+class SpandauerWeihnachtsopenAOpen(Series):
+    series_id = 'spandauer-weihnachtsopen-a-open'
+    name = 'Spandauer Weihnachtsopen | A-Open'
+    venue = 'Bürgersaal, Rathaus Spandau, Carl-Schurz-Str. 2/6, 13597 Berlin'
+    source_url = 'https://www.schachbund.de/turnierdetails/9-spandauer-weihnachtsopen-a-open.html'
+    span_days = 3
+
+class SpandauerWeihnachtsopenBOpen(Series):
+    series_id = 'spandauer-weihnachtsopen-b-open'
+    name = 'Spandauer Weihnachtsopen | B-Open'
+    venue = 'Bürgersaal, Rathaus Spandau, Carl-Schurz-Str. 2/6, 13597 Berlin'
+    source_url = 'https://www.schachbund.de/turnierdetails/9-spandauer-weihnachtsopen-b-open.html'
+    span_days = 3
+
+class Spreewaldpokal(Series):
+    series_id = 'spreewaldpokal'
+    name = 'Spreewaldpokal'
+    region = 'nearby'
+    edition_numbered = False
+    venue = 'Landhaus Duben, Dubener Hauptstraße 5, 15926 Luckau OT Duben'
+    city = 'Luckau (OT Duben)'
+    source_url = 'https://www.berlinerschachverband.de/termin/spreewaldpokal-2026.html'
+
+
+REGISTRY = [
+    GrenkeChessOpen(), HaraldLieb(), LichtenbergerSommer(),
+    AbrafaxeTurnier(),
+    BerlinerJugendblitzmeisterschaft(),
+    BerlinerJugendeinzelmeisterschaftBjem(),
+    BerlinerJugendeinzelmeisterschaftDerMaedchenBjemw(),
+    BerlinerJugendschnellschachmeisterschaft(),
+    BerlinerSchnellschachEm(),
+    BerlinerSchnellschachMm(),
+    BerlinerTandemschachTreffen(),
+    InternationalesBerlinerTandemschachOpen(),
+    InternationalesEmanuelLaskerSchachfestival(),
+    JugendEloRapidU20(),
+    JugendMannschaftsopen(),
+    Jugendherbstopen(),
+    JugendschnellschachMannschaftsopen(),
+    Jugendsommeropen(),
+    Jugendwinteropen(),
+    Kinderfruehlingsturnier(),
+    Kinderherbstopen(),
+    Kindersommeropen(),
+    Kinderwinteropen(),
+    KreuzbergerSchachsommerWernerOttOpen(),
+    SpandauerWeihnachtsBlitz(),
+    SpandauerWeihnachtsRapid(),
+    SpandauerWeihnachtsopenAOpen(),
+    SpandauerWeihnachtsopenBOpen(),
+    Spreewaldpokal(),
+]
 
 
 def registry_by_id():
