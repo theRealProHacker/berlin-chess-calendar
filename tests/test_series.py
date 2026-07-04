@@ -54,9 +54,20 @@ class TestDateMath(unittest.TestCase):
                           "2026-06-18", "2026-06-25", "2026-07-02"])
         self.assertTrue(all(d.isoweekday() == 4 for d in ds))
 
-    def test_iso_weeks(self):
-        self.assertEqual(S._iso_weeks(2026), 53)   # 2026 is a 53-week ISO year
-        self.assertEqual(S._iso_weeks(2024), 52)
+    def test_last_weekday(self):
+        d = S.last_weekday(2027, 12, 3)                 # last Wednesday of December
+        self.assertEqual((d.month, d.isoweekday()), (12, 3))
+        self.assertLess((date(2027, 12, 31) - d).days, 7)
+
+    def test_month_weekday_slot(self):
+        self.assertEqual(S.month_weekday_slot(date(2026, 8, 8)), (8, 6, 2))   # 2nd Saturday
+        last_wed = S.last_weekday(2026, 12, 3)
+        self.assertEqual(S.month_weekday_slot(last_wed)[2], -1)              # last-of-month -> -1
+
+    def test_weekday_of_month_stays_in_month(self):
+        self.assertEqual(S.weekday_of_month(2027, 12, 3, 5).month, 12)       # overflow clamps to Dec
+        got = S.weekday_of_month(2027, 8, 6, 2)
+        self.assertEqual((got.month, got.isoweekday()), (8, 6))
 
 
 class TestParsers(unittest.TestCase):
@@ -150,16 +161,16 @@ class TestPredict(unittest.TestCase):
         self.assertEqual(rec["rounds"][0], "2026-05-21")
         self.assertEqual(len(rec["rounds"]), 7)
 
-    def test_lichtenberger_uses_stable_iso_week(self):
+    def test_lichtenberger_uses_pinned_month_anchor(self):
         recs = _records_before("lichtenberger-sommer", 2026)
         rec = S.LichtenbergerSommer().predict(2026, recs, today="2026-07-04")
-        self.assertEqual(rec["start_date"], "2026-08-08")   # week 32 Saturday
+        self.assertEqual(rec["start_date"], "2026-08-08")   # 2nd Saturday of August
         self.assertEqual(rec["edition"], 22)
 
     def test_cold_start_returns_none(self):
         class NoSlot(S.Series):
             series_id = "x"; name = "X"
-        self.assertIsNone(NoSlot().predict(2026, []))       # no prior edition, no iso_week
+        self.assertIsNone(NoSlot().predict(2026, []))       # no prior edition, no pinned anchor
 
 
 class TestConfirm(unittest.TestCase):

@@ -59,16 +59,37 @@ def easter(year: int) -> date:
     return date(year, month, day)
 
 
-def _iso_weeks(year: int) -> int:
-    """Number of ISO weeks in `year` (52 or 53). Dec 28 is always in the last ISO week."""
-    return date(year, 12, 28).isocalendar()[1]
-
-
 def nth_weekday(year: int, month: int, weekday: int, n: int) -> date:
     """The n-th `weekday` (1=Mon..7=Sun) of `month` in `year` (n>=1)."""
     first = date(year, month, 1)
     offset = (weekday - first.isoweekday()) % 7
     return first + timedelta(days=offset + 7 * (n - 1))
+
+
+def last_weekday(year: int, month: int, weekday: int) -> date:
+    """The last `weekday` of `month` in `year`."""
+    nextm = date(year + (month == 12), (month % 12) + 1, 1)
+    last = nextm - timedelta(days=1)
+    return last - timedelta(days=(last.isoweekday() - weekday) % 7)
+
+
+def month_weekday_slot(d: date):
+    """(month, weekday, k) for date `d`. k = the occurrence-from-start of that weekday in the
+    month, or -1 when `d` is the LAST such weekday (so Christmas-week events anchor to
+    "last <weekday> of December" and never drift into January)."""
+    weekday = d.isoweekday()
+    from_start = (d.day - 1) // 7 + 1
+    return d.month, weekday, (-1 if d == last_weekday(d.year, d.month, weekday) else from_start)
+
+
+def weekday_of_month(year: int, month: int, weekday: int, k: int) -> date:
+    """Resolve a (month, weekday, k) slot to a date in `year`. k<0 counts from the month end
+    (-1 = last); a k that overflows the month clamps to the last occurrence — so the result
+    always stays inside `month`."""
+    if k < 0:
+        return last_weekday(year, month, weekday) - timedelta(weeks=-k - 1)
+    d = nth_weekday(year, month, weekday, k)
+    return d if d.month == month else last_weekday(year, month, weekday)
 
 
 def thursdays_from_mid_may(year: int, n: int) -> list[date]:
@@ -100,9 +121,12 @@ class Series:
     region = "berlin"
     schedule_format = "block"
     age_limit = ("open",)
-    # recurrence hints for the default predictor
-    iso_week: int | None = None       # stable slot; if None, derived from the latest known edition
-    weekday: int | None = None        # start weekday (1=Mon..7=Sun); if None, derived from latest
+    # recurrence hints for the default predictor (the "Kth weekday of a month" anchor).
+    # All None -> derive the slot from the latest known edition. Pin them to override a noisy
+    # latest edition (e.g. Lichtenberger's 2025 slip): anchor_week may be negative (-1 = last).
+    anchor_month: int | None = None   # 1-12
+    anchor_week: int | None = None    # Kth occurrence in the month (1..5, or -1 = last)
+    weekday: int | None = None        # start weekday (1=Mon..7=Sun)
     span_days = 0                     # end = start + span_days
     n_rounds: int | None = None
     horizon_years = 2
@@ -165,22 +189,18 @@ class Series:
             rec["source_url"] = su
         return validate(rec)
 
-    # ---- prediction (default: same ISO-week slot, edition + delta) ----
+    # ---- prediction (default: same "Kth weekday of month" slot, edition + delta) ----
     def predict(self, year, records, *, today=None) -> dict | None:
         prev = self.latest_edition(records)
-        weekday = self.weekday
-        if prev is not None:
-            ps = date.fromisoformat(prev["start_date"])
-            week = self.iso_week if self.iso_week is not None else ps.isocalendar()[1]
-            if weekday is None:
-                weekday = ps.isoweekday()
-            edition = prev["edition"] + (year - ps.year) if prev.get("edition") else None
-        elif self.iso_week is not None:          # cold start with a declared slot
-            week, weekday, edition = self.iso_week, (weekday or 6), None
+        edition = (prev["edition"] + (year - date.fromisoformat(prev["start_date"]).year)
+                   if prev and prev.get("edition") else None)
+        if self.anchor_month is not None:         # a pinned slot overrides a noisy latest edition
+            month, weekday, k = self.anchor_month, self.weekday, self.anchor_week
+        elif prev is not None:                     # derive the slot from the latest known edition
+            month, weekday, k = month_weekday_slot(date.fromisoformat(prev["start_date"]))
         else:
-            return None                           # no slot to predict from -> `missing` flags it
-        week = min(week, _iso_weeks(year))
-        start = date.fromisocalendar(year, week, weekday)
+            return None                            # no slot to predict from -> `missing` flags it
+        start = weekday_of_month(year, month, weekday, k)
         end = start + timedelta(days=self.span_days)
         return self._edition(year, start, end, edition=edition, today=today)
 
@@ -394,7 +414,9 @@ class LichtenbergerSommer(Series):
     organizer = "Schachfreunde Berlin 1903 / SV Friesen Lichtenberg"
     venue = "Tribünenhalle Trabrennbahn Karlshorst"
     source_url = "https://friesen-lichtenberg.de/lichtenberger-sommer/"
-    iso_week = 32
+    anchor_month = 8            # 2nd Saturday of August (stable 2023/24/26; 2025 slipped to wk34)
+    anchor_week = 2
+    weekday = 6
     span_days = 8
     n_rounds = 9
 
