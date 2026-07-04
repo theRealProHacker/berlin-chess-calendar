@@ -37,7 +37,7 @@ from datetime import date, timedelta
 
 from . import add
 from .build import ROOT, load, validate
-from .feeds import (UA, _MONTH, _MONTHS, _meta_description, fetch_all,
+from .feeds import (UA, _MONTH, _MONTHS, _meta_description, fetch_all, fetch_youth,
                     jsonld_event_dates, norm_name, parse_de_date, strip_html)
 
 
@@ -358,6 +358,19 @@ def html_edition(url, year, *, page=None) -> dict | None:
     return None
 
 
+def wp_edition(name, year, *, raws=None) -> dict | None:
+    """Youth confirm: find this series' real edition for `year` on the schachjugend WordPress
+    REST source, matched by normalized name. The WP source lists only UPCOMING events, so this
+    confirms current/near editions (past youth editions scroll off — youth are not backtested)."""
+    raws = raws if raws is not None else fetch_youth()
+    target = norm_name(name)
+    hits = [r for r in raws if norm_name(r.name) == target and r.start[:4] == str(year)]
+    if not hits:
+        return None
+    r = min(hits, key=lambda x: x.start)
+    return {"start_date": r.start, "end_date": r.end, "source_url": r.link or None}
+
+
 # ---- the three wedge subclasses --------------------------------------------
 
 class GrenkeChessOpen(Series):
@@ -424,47 +437,52 @@ class LichtenbergerSommer(Series):
         return html_edition(self.source_url, year, page=page)
 
 
+class YouthSeries(Series):
+    """Berlin youth series: confirm from the schachjugend WordPress source, not the RSS feed."""
+    kind = "youth"
+
+    def fetch(self, year, *, raws=None, feed_events=None):
+        return wp_edition(self.name, year, raws=raws)
+
+
 # ---- ordinary recurring series (thin subclasses; predict + default fetch inherited) ----
 # Axes derived from each series' existing edition in data/tournaments.json. Season-long team
 # leagues (BMM, BJMM) and the ~10 national championships stay data-adds: no stable annual slot.
+# The youth series confirm via the schachjugend WordPress source (YouthSeries), not the RSS feed.
 
-class AbrafaxeTurnier(Series):
+class AbrafaxeTurnier(YouthSeries):
     series_id = 'abrafaxe-turnier'
     name = 'Abrafaxe-Turnier'
     age_limit = ('U8', 'U10', 'U12', 'U14')
-    kind = 'youth'
     time_control = 'rapid'
     organizer = 'SC Borussia Lichtenberg (Schach-Abrafaxe)'
     source_url = 'https://www.abrafaxe-kinderschachturnier.de/'
     n_rounds = 7
 
-class BerlinerJugendblitzmeisterschaft(Series):
+class BerlinerJugendblitzmeisterschaft(YouthSeries):
     series_id = 'berliner-jugendblitzmeisterschaft'
     name = 'Berliner Jugendblitzmeisterschaft'
     age_limit = ('U8', 'U10', 'U12', 'U14', 'U16', 'U18', 'U25')
-    kind = 'youth'
     time_control = 'blitz'
     edition_numbered = False
     organizer = 'Schachjugend in Berlin'
     source_url = 'https://www.schachjugend-in-berlin.de/'
     n_rounds = 11
 
-class BerlinerJugendeinzelmeisterschaftBjem(Series):
+class BerlinerJugendeinzelmeisterschaftBjem(YouthSeries):
     series_id = 'berliner-jugendeinzelmeisterschaft-bjem'
     name = 'Berliner Jugendeinzelmeisterschaft (BJEM)'
     age_limit = ('U8', 'U10', 'U12', 'U14', 'U16', 'U18')
-    kind = 'youth'
     edition_numbered = False
     organizer = 'Schachjugend in Berlin'
     venue = 'Andreas-Gymnasium, Berlin-Friedrichshain'
     source_url = 'https://www.schachjugend-in-berlin.de/'
     span_days = 6
 
-class BerlinerJugendeinzelmeisterschaftDerMaedchenBjemw(Series):
+class BerlinerJugendeinzelmeisterschaftDerMaedchenBjemw(YouthSeries):
     series_id = 'berliner-jugendeinzelmeisterschaft-der-maedchen-bjemw'
     name = 'Berliner Jugendeinzelmeisterschaft der Mädchen (BJEMw)'
     age_limit = ('U8', 'U10', 'U12', 'U14', 'U16', 'U18')
-    kind = 'youth'
     schedule_format = 'other'
     edition_numbered = False
     organizer = 'Schachjugend in Berlin'
@@ -472,11 +490,10 @@ class BerlinerJugendeinzelmeisterschaftDerMaedchenBjemw(Series):
     span_days = 43
     n_rounds = 3
 
-class BerlinerJugendschnellschachmeisterschaft(Series):
+class BerlinerJugendschnellschachmeisterschaft(YouthSeries):
     series_id = 'berliner-jugendschnellschachmeisterschaft'
     name = 'Berliner Jugendschnellschachmeisterschaft'
     age_limit = ('U8', 'U10', 'U12', 'U14', 'U16', 'U18', 'U25')
-    kind = 'youth'
     time_control = 'rapid'
     edition_numbered = False
     organizer = 'Schachjugend in Berlin'
@@ -531,31 +548,28 @@ class InternationalesEmanuelLaskerSchachfestival(Series):
     city = 'Barlinek, Polen'
     source_url = 'https://www.berlinerschachverband.de/termin/7-internationales-emanuel-lasker-schachfestival.html'
 
-class JugendEloRapidU20(Series):
+class JugendEloRapidU20(YouthSeries):
     series_id = 'jugend-elo-rapid-u20'
     name = 'Jugend-Elo-Rapid – U20'
     age_limit = ('U20',)
-    kind = 'youth'
     time_control = 'rapid'
     edition_numbered = False
     source_url = 'https://www.schachjugend-in-berlin.de/jugend-elo-rapid-u20-am-11-juli-2026/'
 
-class JugendMannschaftsopen(Series):
+class JugendMannschaftsopen(YouthSeries):
     series_id = 'jugend-mannschaftsopen'
     name = 'Jugend-Mannschaftsopen'
     age_limit = ('U8', 'U10', 'U12', 'U14', 'U16', 'U18', 'U25')
-    kind = 'youth'
     participation = 'team'
     edition_numbered = False
     organizer = 'Schachjugend in Berlin'
     source_url = 'https://www.schachjugend-in-berlin.de/'
     span_days = 1
 
-class Jugendherbstopen(Series):
+class Jugendherbstopen(YouthSeries):
     series_id = 'jugendherbstopen'
     name = 'Jugendherbstopen'
     age_limit = ('U8', 'U10', 'U12', 'U14', 'U16', 'U18')
-    kind = 'youth'
     edition_numbered = False
     organizer = 'Schachjugend in Berlin'
     venue = 'Andreas-Gymnasium, Berlin-Friedrichshain'
@@ -563,11 +577,10 @@ class Jugendherbstopen(Series):
     span_days = 1
     n_rounds = 5
 
-class JugendschnellschachMannschaftsopen(Series):
+class JugendschnellschachMannschaftsopen(YouthSeries):
     series_id = 'jugendschnellschach-mannschaftsopen'
     name = 'Jugendschnellschach-Mannschaftsopen'
     age_limit = ('U8', 'U10', 'U12', 'U14', 'U16', 'U18', 'U25')
-    kind = 'youth'
     time_control = 'rapid'
     participation = 'team'
     edition_numbered = False
@@ -575,11 +588,10 @@ class JugendschnellschachMannschaftsopen(Series):
     source_url = 'https://www.schachjugend-in-berlin.de/'
     span_days = 1
 
-class Jugendsommeropen(Series):
+class Jugendsommeropen(YouthSeries):
     series_id = 'jugendsommeropen'
     name = 'Jugendsommeropen'
     age_limit = ('U8', 'U10', 'U12', 'U14', 'U16', 'U18')
-    kind = 'youth'
     edition_numbered = False
     organizer = 'Schachjugend in Berlin'
     venue = 'Andreas-Gymnasium, Berlin-Friedrichshain'
@@ -587,11 +599,10 @@ class Jugendsommeropen(Series):
     span_days = 1
     n_rounds = 5
 
-class Jugendwinteropen(Series):
+class Jugendwinteropen(YouthSeries):
     series_id = 'jugendwinteropen'
     name = 'Jugendwinteropen'
     age_limit = ('U25',)
-    kind = 'youth'
     edition_numbered = False
     organizer = 'Schachjugend in Berlin'
     venue = 'Andreas-Gymnasium, Berlin-Friedrichshain'
@@ -599,11 +610,10 @@ class Jugendwinteropen(Series):
     span_days = 1
     n_rounds = 7
 
-class Kinderfruehlingsturnier(Series):
+class Kinderfruehlingsturnier(YouthSeries):
     series_id = 'kinderfruehlingsturnier'
     name = 'Kinderfrühlingsturnier'
     age_limit = ('U8', 'U10', 'U12')
-    kind = 'youth'
     time_control = 'rapid'
     edition_numbered = False
     organizer = 'Schachjugend in Berlin'
@@ -611,11 +621,10 @@ class Kinderfruehlingsturnier(Series):
     source_url = 'https://www.schachjugend-in-berlin.de/'
     span_days = 1
 
-class Kinderherbstopen(Series):
+class Kinderherbstopen(YouthSeries):
     series_id = 'kinderherbstopen'
     name = 'Kinderherbstopen'
     age_limit = ('U8', 'U10', 'U12')
-    kind = 'youth'
     time_control = 'rapid'
     edition_numbered = False
     organizer = 'Schachjugend in Berlin'
@@ -623,11 +632,10 @@ class Kinderherbstopen(Series):
     source_url = 'https://www.schachjugend-in-berlin.de/'
     n_rounds = 5
 
-class Kindersommeropen(Series):
+class Kindersommeropen(YouthSeries):
     series_id = 'kindersommeropen'
     name = 'Kindersommeropen'
     age_limit = ('U8', 'U10', 'U12')
-    kind = 'youth'
     time_control = 'rapid'
     edition_numbered = False
     organizer = 'Schachjugend in Berlin'
@@ -635,11 +643,10 @@ class Kindersommeropen(Series):
     source_url = 'https://www.schachjugend-in-berlin.de/'
     n_rounds = 5
 
-class Kinderwinteropen(Series):
+class Kinderwinteropen(YouthSeries):
     series_id = 'kinderwinteropen'
     name = 'Kinderwinteropen'
     age_limit = ('U8', 'U10', 'U12')
-    kind = 'youth'
     time_control = 'rapid'
     edition_numbered = False
     organizer = 'Schachjugend in Berlin'

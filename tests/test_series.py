@@ -119,6 +119,13 @@ class TestParsers(unittest.TestCase):
             got = S.html_edition("x", y, page=page)
             self.assertEqual((got["start_date"], got["end_date"]), truth, f"Lichtenberger {y}")
 
+    def test_wp_edition_resolves_youth(self):
+        from bcc.feeds import fetch_youth
+        raws = fetch_youth(fixtures=True, today="2026-01-01")     # the captured schachjugend sample
+        got = S.JugendEloRapidU20().fetch(2026, raws=raws)        # YouthSeries -> wp_edition
+        self.assertEqual(got["start_date"], "2026-07-11")
+        self.assertIsNone(S.JugendEloRapidU20().fetch(2030, raws=raws))   # no post that year -> manual
+
 
 class TestRecordBuilder(unittest.TestCase):
     def test_edition_is_validate_clean(self):
