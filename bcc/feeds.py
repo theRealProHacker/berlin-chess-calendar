@@ -9,6 +9,7 @@ Series model replaces guessed axes with fixed class attributes, so it moves with
 """
 from __future__ import annotations
 
+import hashlib
 import html
 import json
 import re
@@ -20,6 +21,9 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 
 from .build import ROOT
+
+CACHE_DIR = ROOT / ".feedcache"     # git-ignored on-disk source snapshot
+CACHE_TTL_DAYS = 14                 # a fetched source is reused for 2 weeks before a re-fetch
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36")
@@ -117,12 +121,56 @@ def parse_feed(xml_text, source):
     return out
 
 
-def http_get(url):
+_FORCE_REFETCH = False
+
+
+def set_refetch(on: bool) -> None:
+    """Force every cached_get to re-fetch live this run (the `--refetch` 'real deal' path)."""
+    global _FORCE_REFETCH
+    _FORCE_REFETCH = on
+
+
+def _http_bytes(url):
     req = urllib.request.Request(url, headers={
         "User-Agent": UA, "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
         "Accept": "application/rss+xml, application/xml;q=0.9, */*;q=0.8"})
-    with urllib.request.urlopen(req, timeout=20) as r:  # nosec - fixed https feed urls
-        return r.read().decode("utf-8")
+    with urllib.request.urlopen(req, timeout=30) as r:  # nosec - fixed https urls
+        return r.read()
+
+
+def cached_get(url, *, binary=False, ttl_days=CACHE_TTL_DAYS, today=None, offline=False,
+               force=False, cache_dir=None, fetcher=None):
+    """HTTP GET with an on-disk snapshot cache (default TTL 2 weeks).
+
+    Inside the TTL the cached snapshot is returned with no network hit; past it (or on a miss) the
+    source is re-fetched and the snapshot refreshed. `offline=True` never hits the network (snapshot
+    only; None if absent). `force=True` (or set_refetch) always re-fetches — the `--refetch` path.
+    Returns bytes if `binary` else str.
+    """
+    cache_dir = cache_dir or CACHE_DIR
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    man_path = cache_dir / "manifest.json"
+    man = json.loads(man_path.read_text(encoding="utf-8")) if man_path.exists() else {}
+    today = today or date.today().isoformat()
+    ent = man.get(url)
+    fp = cache_dir / ent["file"] if ent else None
+    if ent and fp.exists() and not (force or _FORCE_REFETCH):
+        age = (date.fromisoformat(today) - date.fromisoformat(ent["fetched"])).days
+        if offline or age < ttl_days:
+            raw = fp.read_bytes()
+            return raw if binary else raw.decode("utf-8", "replace")
+    if offline:
+        return None                       # stale/missing and not allowed to touch the network
+    raw = (fetcher or _http_bytes)(url)
+    fn = hashlib.sha1(url.encode("utf-8")).hexdigest()[:16] + (".bin" if binary else ".txt")
+    (cache_dir / fn).write_bytes(raw)
+    man[url] = {"file": fn, "fetched": today, "url": url}
+    man_path.write_text(json.dumps(man, ensure_ascii=False, indent=2), encoding="utf-8")
+    return raw if binary else raw.decode("utf-8", "replace")
+
+
+def http_get(url):
+    return cached_get(url)
 
 
 def fetch_all(fixtures=False):

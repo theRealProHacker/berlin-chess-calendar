@@ -256,5 +256,31 @@ class TestBacktest(unittest.TestCase):
             self.assertEqual(pred["start_date"], ts, f"Grenke {year} predict must be exact")
 
 
+class TestCache(unittest.TestCase):
+    """The 2-week snapshot cache: TTL reuse, --refetch force, offline-only."""
+
+    def test_ttl_force_offline(self):
+        import tempfile
+        import pathlib
+        from bcc import feeds
+        with tempfile.TemporaryDirectory() as d:
+            cd = pathlib.Path(d)
+            calls = []
+
+            def fake(url):
+                calls.append(url)
+                return ("v%d" % len(calls)).encode()
+
+            a = feeds.cached_get("http://x/", cache_dir=cd, today="2026-01-01", fetcher=fake)
+            b = feeds.cached_get("http://x/", cache_dir=cd, today="2026-01-10", fetcher=fake)  # < 14d
+            self.assertEqual((a, b, len(calls)), ("v1", "v1", 1))                # cache hit, no refetch
+            c = feeds.cached_get("http://x/", cache_dir=cd, today="2026-02-01", fetcher=fake)  # > 14d
+            self.assertEqual((c, len(calls)), ("v2", 2))                         # TTL expired -> refetch
+            feeds.cached_get("http://x/", cache_dir=cd, today="2026-02-02", fetcher=fake, force=True)
+            self.assertEqual(len(calls), 3)                                      # --refetch bypasses TTL
+            off = feeds.cached_get("http://x/", cache_dir=cd, today="2099-01-01", fetcher=fake, offline=True)
+            self.assertEqual((off, len(calls)), ("v3", 3))                       # offline: snapshot only
+
+
 if __name__ == "__main__":
     unittest.main()

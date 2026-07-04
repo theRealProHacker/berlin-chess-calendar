@@ -1,9 +1,13 @@
 """Recurring-tournament class layer: predict future editions, confirm them from real sources.
 
-    python3 -m bcc.series predict [--apply]   # ensure the horizon of expected editions exists
+    python3 -m bcc.series predict [--apply]    # ensure the horizon of expected editions exists
     python3 -m bcc.series confirm [--apply]    # fetch real dates -> promote expected -> confirmed
+    python3 -m bcc.series check [--refetch]    # backtest: is each confirmed edition reproduced now?
     python3 -m bcc.series missing              # what a human must still fill / hand-confirm
     python3 -m bcc.series suggest              # feed events matching no known series (the scout)
+
+Sources are fetched through a 2-week on-disk snapshot cache (bcc/feeds.cached_get); pass
+`--refetch` to bypass it and pull every source live ("the real deal").
 
 One base `Series` + one singleton subclass per recurring series in the explicit REGISTRY.
 The fat base does the common case (same ISO-week slot next year, edition+1, look me up in a
@@ -32,13 +36,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import urllib.request
 from datetime import date, timedelta
 
 from . import add
 from .build import ROOT, load, validate
-from .feeds import (UA, _MONTH, _MONTHS, _meta_description, fetch_all, fetch_youth,
-                    jsonld_event_dates, norm_name, parse_de_date, strip_html)
+from .feeds import (_MONTH, _MONTHS, _meta_description, cached_get, fetch_all, fetch_youth,
+                    jsonld_event_dates, norm_name, parse_de_date, set_refetch, strip_html)
 
 
 # ---- date math (stdlib computus, no dependency) -----------------------------
@@ -227,13 +230,11 @@ def _have_pdftotext() -> bool:
 
 
 def _download(url: str) -> bytes:
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=30) as r:  # nosec - organizer https urls
-        return r.read()
+    return cached_get(url, binary=True)
 
 
 def http_page(url: str) -> str:
-    return _download(url).decode("utf-8", "replace")
+    return cached_get(url)
 
 
 def pdf_text(url: str) -> str | None:
@@ -799,8 +800,49 @@ def _fmt_set(cmd):
     return f"python3 -m bcc.add {verb} " + " ".join(parts)
 
 
-def cmd_confirm(apply=False):
+def cmd_check(records=None):
+    """Backtest the confirm layer: for every CONFIRMED edition, does its series' fetch reproduce
+    those dates from the source *now* (the 2-week cached snapshot; `--refetch` for a live pull)?
+
+    Answer key = our confirmed records; source = the cached feed/WP/organizer. No historical
+    archive needed, so it covers every series with a machine source, not just the wedge. A fetch
+    that returns None is reported `manual`, not a failure (matches the `missing` path).
+    """
+    records = records if records is not None else load()
+    reg = registry_by_id()
+    rows = []
+    for r in records:
+        if r["status"] != "confirmed" or reg.get(r.get("series")) is None:
+            continue
+        s = reg[r["series"]]
+        year = int(r["start_date"][:4])
+        try:
+            found = s.fetch(year)
+        except Exception as e:
+            rows.append((r["id"], "err", f"fetch failed: {e}"))
+            continue
+        if not found:
+            rows.append((r["id"], "manual", "source has no machine-readable edition for this year"))
+        elif (found["start_date"], found["end_date"]) == (r["start_date"], r["end_date"]):
+            rows.append((r["id"], "match", f"{found['start_date']}..{found['end_date']}"))
+        else:
+            rows.append((r["id"], "mismatch",
+                         f"source={found['start_date']}..{found['end_date']} data={r['start_date']}..{r['end_date']}"))
+    tally = {k: sum(1 for _, t, _ in rows if t == k) for k in ("match", "mismatch", "manual", "err")}
+    mark = {"match": "OK  ", "mismatch": "!!  ", "manual": ".   ", "err": "ERR "}
+    print("CONFIRM CHECK — would each confirmed edition be reproduced from the feed now?\n"
+          "(sources come from the 2-week cached snapshot; pass --refetch for a live pull)\n")
+    for rid, t, detail in rows:
+        print(f"  {mark[t]}{rid}: {detail}")
+    print(f"\n{tally['match']} match, {tally['mismatch']} MISMATCH, "
+          f"{tally['manual']} manual, {tally['err']} error  (of {len(rows)} confirmed w/ a subclass)")
+    return rows
+
+
+def cmd_confirm(apply=False, check=False):
     records = load()
+    if check:
+        return cmd_check(records)
     cmds = []
     base = date.today().year
     for s in REGISTRY:
@@ -874,12 +916,17 @@ def cmd_suggest(apply=False):
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     apply = "--apply" in argv
-    argv = [a for a in argv if a != "--apply"]
+    check = "--check" in argv
+    if "--refetch" in argv:                 # bypass the cache: pull every source live
+        set_refetch(True)
+    argv = [a for a in argv if a not in ("--apply", "--check", "--refetch")]
     cmd = argv[0] if argv else ""
     if cmd == "predict":
         cmd_predict(apply)
     elif cmd == "confirm":
-        cmd_confirm(apply)
+        cmd_confirm(apply, check)
+    elif cmd == "check":
+        cmd_check()
     elif cmd == "missing":
         cmd_missing()
     elif cmd == "suggest":

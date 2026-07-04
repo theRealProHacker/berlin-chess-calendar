@@ -17,3 +17,6 @@ dist/
 !.claude/skills/
 .claude/skills/gstack/   # defensive: never commit a vendored gstack copy if one ever appears
 
+
+# on-disk source snapshot cache (bcc.feeds cached_get)
+.feedcache/
