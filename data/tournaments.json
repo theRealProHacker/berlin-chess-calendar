@@ -1,6 +1,8 @@
 [
   {
     "id": "harald-lieb-gedenkturnier-2026",
+    "series": "harald-lieb-gedenkturnier",
+    "rounds_count": 7,
     "name": "10. Harald-Lieb-Gedenkturnier (24. SK Zehlendorf Open)",
     "kind": "memorial",
     "edition": 10,
@@ -24,6 +26,7 @@
   },
   {
     "id": "berliner-tandemschach-treffen-2026",
+    "series": "berliner-tandemschach-treffen",
     "name": "Berliner Tandemschach-Treffen 2026",
     "kind": "festival",
     "start_date": "2026-06-25",
@@ -43,6 +46,7 @@
   },
   {
     "id": "internationales-berliner-tandemschach-open-2026",
+    "series": "internationales-berliner-tandemschach-open",
     "name": "22. Internationales Berliner Tandemschach-Open",
     "kind": "open",
     "edition": 22,
@@ -63,6 +67,7 @@
   },
   {
     "id": "berliner-schnellschach-em-2026",
+    "series": "berliner-schnellschach-em",
     "name": "Berliner Schnellschach-Einzelmeisterschaft 2026",
     "kind": "championship",
     "start_date": "2026-07-04",
@@ -82,6 +87,7 @@
   },
   {
     "id": "berliner-schnellschach-mm-2026",
+    "series": "berliner-schnellschach-mm",
     "name": "Berliner Schnellschach-Mannschaftsmeisterschaft 2026",
     "kind": "championship",
     "start_date": "2026-07-05",
@@ -101,6 +107,7 @@
   },
   {
     "id": "jugend-elo-rapid-u20-2026",
+    "series": "jugend-elo-rapid-u20",
     "name": "Jugend-Elo-Rapid – U20 2026",
     "kind": "youth",
     "start_date": "2026-07-11",
@@ -123,6 +130,8 @@
   },
   {
     "id": "kreuzberger-schachsommer-werner-ott-open-2026",
+    "series": "kreuzberger-schachsommer-werner-ott-open",
+    "rounds_count": 9,
     "name": "Kreuzberger Schachsommer – Werner-Ott-Open 2026",
     "kind": "open",
     "start_date": "2026-08-01",
@@ -145,6 +154,8 @@
   },
   {
     "id": "lichtenberger-sommer-2026",
+    "series": "lichtenberger-sommer",
+    "rounds_count": 9,
     "name": "22. Lichtenberger Sommer",
     "kind": "open",
     "edition": 22,
@@ -171,6 +182,7 @@
   },
   {
     "id": "internationales-emanuel-lasker-schachfestival-2026",
+    "series": "internationales-emanuel-lasker-schachfestival",
     "name": "7. Internationales Emanuel-Lasker-Schachfestival",
     "kind": "festival",
     "edition": 7,
@@ -192,6 +204,7 @@
   },
   {
     "id": "norddeutsche-vereinseinzelmeisterschaft-ndvm-u16-2026",
+    "series": "norddeutsche-vereinseinzelmeisterschaft-ndvm-u16",
     "name": "Norddeutsche Vereinseinzelmeisterschaft (NDVM) U16 2026",
     "kind": "youth",
     "start_date": "2026-09-02",
@@ -213,6 +226,8 @@
   },
   {
     "id": "berliner-jugendmannschaftsmeisterschaft-bjmm-2026",
+    "series": "berliner-jugendmannschaftsmeisterschaft-bjmm",
+    "rounds_count": 8,
     "name": "Berliner Jugendmannschaftsmeisterschaft (BJMM) 2026/27",
     "kind": "youth",
     "start_date": "2026-09-05",
@@ -236,6 +251,7 @@
   },
   {
     "id": "norddeutsche-vereinseinzelmeisterschaft-ndvm-u12-u14-2026",
+    "series": "norddeutsche-vereinseinzelmeisterschaft-ndvm-u12-u14",
     "name": "Norddeutsche Vereinseinzelmeisterschaft (NDVM) U12/U14 2026",
     "kind": "youth",
     "start_date": "2026-09-09",
@@ -257,6 +273,7 @@
   },
   {
     "id": "norddeutsche-vereinseinzelmeisterschaft-ndvm-u12w-u16w-2026",
+    "series": "norddeutsche-vereinseinzelmeisterschaft-ndvm-u12w-u16w",
     "name": "Norddeutsche Vereinseinzelmeisterschaft (NDVM) U12w/U16w 2026",
     "kind": "youth",
     "start_date": "2026-09-18",
@@ -278,6 +295,7 @@
   },
   {
     "id": "spreewaldpokal-2026",
+    "series": "spreewaldpokal",
     "name": "Spreewaldpokal 2026",
     "kind": "open",
     "start_date": "2026-09-19",
@@ -299,6 +317,8 @@
   },
   {
     "id": "berliner-mannschaftsmeisterschaft-2026-27",
+    "series": "berliner-mannschaftsmeisterschaft",
+    "rounds_count": 9,
     "name": "Berliner Mannschaftsmeisterschaft (BMM) 2026/27",
     "kind": "league",
     "start_date": "2026-09-20",
@@ -319,6 +339,8 @@
   },
   {
     "id": "kindersommeropen-2026",
+    "series": "kindersommeropen",
+    "rounds_count": 5,
     "name": "Kindersommeropen 2026",
     "kind": "youth",
     "start_date": "2026-10-03",
@@ -342,6 +364,8 @@
   },
   {
     "id": "deutsche-laendermeisterschaft-dlm-2026",
+    "series": "deutsche-laendermeisterschaft-dlm",
+    "rounds_count": 7,
     "name": "Deutsche Ländermeisterschaft (DLM) 2026",
     "kind": "youth",
     "start_date": "2026-10-07",
@@ -364,6 +388,8 @@
   },
   {
     "id": "jugendsommeropen-2026",
+    "series": "jugendsommeropen",
+    "rounds_count": 5,
     "name": "Jugendsommeropen 2026",
     "kind": "youth",
     "start_date": "2026-10-17",
@@ -387,6 +413,8 @@
   },
   {
     "id": "internationale-einzelmeisterschaft-iem-u8-2026",
+    "series": "internationale-einzelmeisterschaft-iem-u8",
+    "rounds_count": 9,
     "name": "26. Internationale Einzelmeisterschaft (IEM) U8",
     "kind": "youth",
     "start_date": "2026-10-18",
@@ -412,6 +440,8 @@
   },
   {
     "id": "kinderherbstopen-2026",
+    "series": "kinderherbstopen",
+    "rounds_count": 5,
     "name": "Kinderherbstopen 2026",
     "kind": "youth",
     "start_date": "2026-11-14",
@@ -435,6 +465,8 @@
   },
   {
     "id": "jugendherbstopen-2026",
+    "series": "jugendherbstopen",
+    "rounds_count": 5,
     "name": "Jugendherbstopen 2026",
     "kind": "youth",
     "start_date": "2026-11-28",
@@ -458,6 +490,7 @@
   },
   {
     "id": "spandauer-weihnachts-rapid-2026",
+    "series": "spandauer-weihnachts-rapid",
     "name": "Spandauer Weihnachts-Rapid 2026",
     "kind": "open",
     "start_date": "2026-12-23",
@@ -477,6 +510,7 @@
   },
   {
     "id": "deutsche-vereinsmeisterschaft-dvm-u12-u20-2026",
+    "series": "deutsche-vereinsmeisterschaft-dvm-u12-u20",
     "name": "Deutsche Vereinsmeisterschaft (DVM) U12–U20 2026",
     "kind": "youth",
     "start_date": "2026-12-26",
@@ -498,6 +532,7 @@
   },
   {
     "id": "deutsche-vereinsmeisterschaft-dvm-u10-2026",
+    "series": "deutsche-vereinsmeisterschaft-dvm-u10",
     "name": "Deutsche Vereinsmeisterschaft (DVM) U10 2026",
     "kind": "youth",
     "start_date": "2026-12-27",
@@ -520,6 +555,7 @@
   },
   {
     "id": "spandauer-weihnachtsopen-a-open-2026",
+    "series": "spandauer-weihnachtsopen-a-open",
     "name": "9. Spandauer Weihnachtsopen | A-Open",
     "kind": "open",
     "edition": 9,
@@ -540,6 +576,7 @@
   },
   {
     "id": "spandauer-weihnachtsopen-b-open-2026",
+    "series": "spandauer-weihnachtsopen-b-open",
     "name": "9. Spandauer Weihnachtsopen | B-Open",
     "kind": "open",
     "edition": 9,
@@ -560,6 +597,7 @@
   },
   {
     "id": "spandauer-weihnachts-blitz-2026",
+    "series": "spandauer-weihnachts-blitz",
     "name": "Spandauer Weihnachts-Blitz 2026",
     "kind": "open",
     "start_date": "2026-12-30",
@@ -579,6 +617,8 @@
   },
   {
     "id": "berliner-jugendeinzelmeisterschaft-der-maedchen-bjemw-2027",
+    "series": "berliner-jugendeinzelmeisterschaft-der-maedchen-bjemw",
+    "rounds_count": 3,
     "name": "Berliner Jugendeinzelmeisterschaft der Mädchen (BJEMw) 2027",
     "kind": "youth",
     "start_date": "2027-01-16",
@@ -601,6 +641,7 @@
   },
   {
     "id": "berliner-jugendeinzelmeisterschaft-bjem-2027",
+    "series": "berliner-jugendeinzelmeisterschaft-bjem",
     "name": "Berliner Jugendeinzelmeisterschaft (BJEM) 2027",
     "kind": "youth",
     "start_date": "2027-01-30",
@@ -623,6 +664,8 @@
   },
   {
     "id": "jugendwinteropen-2027",
+    "series": "jugendwinteropen",
+    "rounds_count": 7,
     "name": "Jugendwinteropen 2027",
     "kind": "youth",
     "start_date": "2027-01-30",
@@ -646,6 +689,8 @@
   },
   {
     "id": "kinderwinteropen-2027",
+    "series": "kinderwinteropen",
+    "rounds_count": 5,
     "name": "Kinderwinteropen 2027",
     "kind": "youth",
     "start_date": "2027-01-30",
@@ -669,6 +714,7 @@
   },
   {
     "id": "kinderfruehlingsturnier-2027",
+    "series": "kinderfruehlingsturnier",
     "name": "Kinderfrühlingsturnier 2027",
     "kind": "youth",
     "start_date": "2027-02-27",
@@ -692,6 +738,7 @@
   },
   {
     "id": "jugendschnellschach-mannschaftsopen-2027",
+    "series": "jugendschnellschach-mannschaftsopen",
     "name": "Jugendschnellschach-Mannschaftsopen 2027",
     "kind": "youth",
     "start_date": "2027-03-13",
@@ -713,6 +760,8 @@
   },
   {
     "id": "grenke-chess-open-2027",
+    "series": "grenke-chess-open",
+    "rounds_count": 9,
     "name": "Grenke Chess Open 2027",
     "kind": "open",
     "start_date": "2027-03-25",
@@ -734,6 +783,7 @@
   },
   {
     "id": "jugend-mannschaftsopen-2027",
+    "series": "jugend-mannschaftsopen",
     "name": "Jugend-Mannschaftsopen 2027",
     "kind": "youth",
     "start_date": "2027-04-10",
@@ -755,6 +805,7 @@
   },
   {
     "id": "deutsche-schulschachmeisterschaften-dssm-2027",
+    "series": "deutsche-schulschachmeisterschaften-dssm",
     "name": "Deutsche Schulschachmeisterschaften (DSSM) 2027",
     "kind": "youth",
     "start_date": "2027-04-25",
@@ -776,6 +827,7 @@
   },
   {
     "id": "deutsche-jugendeinzelmeisterschaften-dem-2027",
+    "series": "deutsche-jugendeinzelmeisterschaften-dem",
     "name": "Deutsche Jugendeinzelmeisterschaften (DEM) 2027",
     "kind": "youth",
     "start_date": "2027-05-15",
@@ -798,6 +850,8 @@
   },
   {
     "id": "abrafaxe-turnier-2027",
+    "series": "abrafaxe-turnier",
+    "rounds_count": 7,
     "name": "29. Abrafaxe-Turnier",
     "kind": "youth",
     "start_date": "2027-05-29",
@@ -821,6 +875,8 @@
   },
   {
     "id": "deutsche-familienmeisterschaft-2027",
+    "series": "deutsche-familienmeisterschaft",
+    "rounds_count": 7,
     "name": "Deutsche Familienmeisterschaft 2027",
     "kind": "youth",
     "start_date": "2027-06-05",
@@ -840,6 +896,8 @@
   },
   {
     "id": "berliner-jugendblitzmeisterschaft-2027",
+    "series": "berliner-jugendblitzmeisterschaft",
+    "rounds_count": 11,
     "name": "Berliner Jugendblitzmeisterschaft 2027",
     "kind": "youth",
     "start_date": "2027-06-12",
@@ -862,6 +920,8 @@
   },
   {
     "id": "berliner-jugendschnellschachmeisterschaft-2027",
+    "series": "berliner-jugendschnellschachmeisterschaft",
+    "rounds_count": 7,
     "name": "Berliner Jugendschnellschachmeisterschaft 2027",
     "kind": "youth",
     "start_date": "2027-06-13",
@@ -884,6 +944,7 @@
   },
   {
     "id": "harald-lieb-gedenkturnier-2027",
+    "series": "harald-lieb-gedenkturnier",
     "name": "11. Harald-Lieb-Gedenkturnier",
     "kind": "memorial",
     "edition": 11,
@@ -906,6 +967,7 @@
   },
   {
     "id": "lichtenberger-sommer-2027",
+    "series": "lichtenberger-sommer",
     "name": "23. Lichtenberger Sommer",
     "kind": "open",
     "edition": 23,

@@ -109,9 +109,10 @@ class Series:
 
     # ---- edition lookup ----
     def editions(self, records):
-        """Records belonging to this series: id == f'{series_id}-YYYY' (UID-derived, deterministic)."""
+        """Records belonging to this series: the explicit `series` field, else the UID prefix."""
         pat = re.compile(rf"^{re.escape(self.series_id)}-(\d{{4}})$")
-        return [r for r in records if pat.match(r["id"])]
+        return [r for r in records
+                if r.get("series") == self.series_id or (r.get("series") is None and pat.match(r["id"]))]
 
     def latest_edition(self, records):
         eds = self.editions(records)
@@ -128,14 +129,11 @@ class Series:
     # ---- record builder ----
     def _edition(self, year, start, end, *, edition=None, rounds=None, status="expected",
                  sources=None, source_url=None, today=None) -> dict:
-        """Build one validate()-clean edition record. id is series_id-derived, not name-derived.
-
-        Does NOT emit `series`/`rounds_count` — those fields join the schema in increment 2; here
-        they would fail validate() as unknown keys.
-        """
+        """Build one validate()-clean edition record. id is series_id-derived, not name-derived."""
         today = today or date.today().isoformat()
         rec = {
             "id": f"{self.series_id}-{year}",
+            "series": self.series_id,
             "name": self.name_for(year, edition),
             "kind": self.kind,
             "start_date": start.isoformat() if isinstance(start, date) else start,
@@ -155,6 +153,9 @@ class Series:
             rec["edition"] = edition
         if rounds:
             rec["rounds"] = [d.isoformat() if isinstance(d, date) else d for d in rounds]
+        rc = self.n_rounds if self.n_rounds is not None else (len(rounds) if rounds else None)
+        if rc is not None:
+            rec["rounds_count"] = rc
         for attr in ("organizer", "venue", "city"):
             v = getattr(self, attr, None)
             if v:

@@ -120,12 +120,12 @@ class TestRecordBuilder(unittest.TestCase):
         self.assertEqual(rec["sources"], ["recurring"])
         self.assertEqual(rec["tagged_by"], "auto")
 
-    def test_edition_omits_increment2_fields(self):
-        # `series` and `rounds_count` are NOT in the schema yet -> must not be emitted
-        rec = S.HaraldLieb()._edition(2027, date(2027, 5, 20), date(2027, 7, 1),
-                                      edition=11, rounds=[date(2027, 5, 20)], today="2026-07-04")
-        self.assertNotIn("series", rec)
-        self.assertNotIn("rounds_count", rec)
+    def test_edition_emits_series_and_rounds_count(self):
+        rec = S.HaraldLieb()._edition(2027, date(2027, 5, 20), date(2027, 7, 1), edition=11,
+                                      rounds=[date(2027, 5, 20) for _ in range(7)], today="2026-07-04")
+        self.assertEqual(rec["series"], "harald-lieb-gedenkturnier")
+        self.assertEqual(rec["rounds_count"], 7)             # n_rounds, and == len(rounds)
+        validate(rec)
 
     def test_name_for(self):
         self.assertEqual(S.GrenkeChessOpen().name_for(2026), "Grenke Chess Open 2026")

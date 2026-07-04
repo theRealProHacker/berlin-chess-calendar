@@ -33,9 +33,9 @@ REQUIRED = ["id", "name", "kind", "start_date", "end_date", "variant", "time_con
 # registration ("Anmeldung") is free text: a sign-up URL, or a phrase like "über den
 # Verein" / "über Qualifikation" for non-opens. chess_results_url / ausschreibung_url
 # (the PDF) are blank when they don't exist.
-OPTIONAL = {"edition", "rounds", "organizer", "venue", "city", "source_url",
-            "registration_deadline", "registration", "chess_results_url", "ausschreibung_url",
-            "prize_pool", "tagged_by", "notes"}
+OPTIONAL = {"edition", "rounds", "rounds_count", "series", "organizer", "venue", "city",
+            "source_url", "registration_deadline", "registration", "chess_results_url",
+            "ausschreibung_url", "prize_pool", "tagged_by", "notes"}
 
 _ISO = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 _SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -94,6 +94,14 @@ def validate(r: dict) -> dict:
             prev = d
     if r.get("edition") is not None and (not isinstance(r["edition"], int) or r["edition"] < 1):
         raise ValidationError(f"{rid}: edition must be a positive int")
+    rc = r.get("rounds_count")
+    if rc is not None:
+        if not isinstance(rc, int) or rc < 1:
+            raise ValidationError(f"{rid}: rounds_count must be a positive int")
+        if r.get("rounds") is not None and rc != len(r["rounds"]):
+            raise ValidationError(f"{rid}: rounds_count {rc} != len(rounds) {len(r['rounds'])}")
+    if "series" in r and not (isinstance(r["series"], str) and _SLUG.match(r["series"])):
+        raise ValidationError(f"{rid}: series must be a slug")
     pp = r.get("prize_pool")
     if pp is not None and ("amount" not in pp or "currency" not in pp):
         raise ValidationError(f"{rid}: prize_pool needs 'amount' and 'currency'")
@@ -159,6 +167,8 @@ def _vevent(t):
         bits.append(t["organizer"])
     if t.get("prize_pool"):
         bits.append(f"{t['prize_pool']['amount']} {t['prize_pool']['currency']} Preisfonds")
+    if t.get("rounds_count") or t.get("rounds"):
+        bits.append(f"{t.get('rounds_count') or len(t['rounds'])} Runden")
     if t["status"] == "expected":
         bits.append("erwartet, noch nicht bestätigt")
     loc = ", ".join(x for x in (t.get("venue"), t.get("city")) if x)

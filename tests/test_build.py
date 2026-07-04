@@ -60,6 +60,20 @@ class TestValidate(unittest.TestCase):
     def test_edition(self):
         self.assertRaises(ValidationError, validate, mk(edition=0))
 
+    def test_rounds_count_positive_int(self):
+        validate(mk(rounds_count=9))
+        self.assertRaises(ValidationError, validate, mk(rounds_count=0))
+        self.assertRaises(ValidationError, validate, mk(rounds_count="9"))
+
+    def test_rounds_count_matches_rounds(self):
+        validate(mk(schedule_format="weekly", rounds=["2026-08-03", "2026-08-10"], rounds_count=2))
+        self.assertRaises(ValidationError, validate,
+                          mk(schedule_format="weekly", rounds=["2026-08-03", "2026-08-10"], rounds_count=3))
+
+    def test_series_must_be_slug(self):
+        validate(mk(series="lichtenberger-sommer"))
+        self.assertRaises(ValidationError, validate, mk(series="Lichtenberger Sommer"))
+
 
 class TestSlug(unittest.TestCase):
     def test_strip(self):

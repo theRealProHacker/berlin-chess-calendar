@@ -347,9 +347,14 @@ window.TOURNAMENTS = __DATA__;
   }
 
   function roundsLine(t){
-    if(t.schedule_format==="block") return "";
-    var span=ddmm(t.start_date)+" – "+ddmm(t.end_date)+t.end_date.split("-")[0];
-    return '<div class="rounds">'+valLabel("format",t.schedule_format)+" · "+span+'</div>';
+    var parts=[];
+    if(t.schedule_format!=="block"){
+      parts.push(valLabel("format",t.schedule_format));
+      parts.push(ddmm(t.start_date)+" – "+ddmm(t.end_date)+t.end_date.split("-")[0]);
+    }
+    var rc=t.rounds_count!=null?t.rounds_count:(t.rounds?t.rounds.length:null);
+    if(rc!=null) parts.push(rc+" "+L.runden);
+    return parts.length?'<div class="rounds">'+parts.join(" · ")+'</div>':"";
   }
 
   function sectionOf(t){
