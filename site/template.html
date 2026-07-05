@@ -108,11 +108,10 @@
     font:inherit;font-size:14.5px;font-weight:500;cursor:pointer;letter-spacing:-.01em;transition:.12s}
   .opt:hover{border-color:#c7c7cc;color:var(--ink)}
   .opt.sel{background:var(--blue-tint);color:var(--blue);border-color:var(--blue-bd)}
-  .evcal{margin-top:14px}
-  .caldrop{position:relative;display:inline-block}
-  .caldrop .btn-sub{cursor:pointer}
-  .caret{font-size:11px;opacity:.9}
-  .calmenu{position:absolute;top:calc(100% + 6px);left:0;z-index:5;min-width:190px;background:#fff;border:1px solid var(--sep);border-radius:12px;box-shadow:var(--shadow-modal);padding:6px;display:none}
+  .card-cal{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border:1px solid var(--sep);border-radius:9px;background:#fff;color:var(--ink-3);cursor:pointer;transition:color .15s ease,border-color .15s ease}
+  .card-cal:hover{color:var(--blue);border-color:var(--blue-bd)}
+  .card-cal svg{width:16px;height:16px}
+  .calmenu{position:absolute;z-index:60;min-width:190px;background:#fff;border:1px solid var(--sep);border-radius:12px;box-shadow:var(--shadow-modal);padding:6px;display:none}
   .calmenu.on{display:block}
   .calitem{display:block;width:100%;text-align:left;padding:9px 12px;border:0;border-radius:8px;background:none;color:var(--ink);font-family:inherit;font-size:14px;cursor:pointer;text-decoration:none}
   .calitem:hover{background:var(--surface)}
@@ -217,13 +216,14 @@
     <div class="ev-top">
       <div class="ev-deadline" id="evDeadline"></div>
       <div class="ev-daterow"><span class="ev-date" id="evWhen"></span><span id="evStatus"></span></div>
-      <div class="evcal" id="evCal"></div>
       <div class="ev-meta" id="evMeta"></div>
       <div class="ev-sub" id="evSub"></div>
     </div>
     <ul class="elinks" id="evLinks"></ul>
   </div>
 </div>
+
+<div class="calmenu" id="calMenu"></div>
 
 <script>
 window.TOURNAMENTS = __DATA__;
@@ -439,23 +439,22 @@ window.TOURNAMENTS = __DATA__;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(function(){ URL.revokeObjectURL(url); },2000);
   }
-  function renderCal(t){
-    $("evCal").innerHTML='<div class="caldrop">'+
-      '<button class="btn-sub" id="calBtn" aria-haspopup="true" aria-expanded="false">'+
-        '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>'+
-        L.subscribe+' <span class="caret">&#9662;</span></button>'+
-      '<div class="calmenu" id="calMenu">'+
-        '<a class="calitem" target="_blank" rel="noopener" href="'+esc(gcalHref(t))+'">Google</a>'+
-        '<a class="calitem" target="_blank" rel="noopener" href="'+esc(outlookHref(t))+'">Outlook</a>'+
-        '<button class="calitem" id="calIcs">Apple / .ics</button>'+
-      '</div></div>';
-    $("calBtn").onclick=function(e){ e.stopPropagation(); var open=$("calMenu").classList.toggle("on"); this.setAttribute("aria-expanded",open); };
-    $("calIcs").onclick=function(){ downloadIcs(t); $("calMenu").classList.remove("on"); };
+  // one shared popover, repositioned to the clicked card's icon (not one menu per card)
+  function openCalMenu(t, anchor){
+    var m=$("calMenu");
+    m.innerHTML='<a class="calitem" target="_blank" rel="noopener" href="'+esc(gcalHref(t))+'">Google</a>'+
+      '<a class="calitem" target="_blank" rel="noopener" href="'+esc(outlookHref(t))+'">Outlook</a>'+
+      '<button class="calitem" id="calIcs">Apple / .ics</button>';
+    $("calIcs").onclick=function(){ downloadIcs(t); m.classList.remove("on"); };
+    var r=anchor.getBoundingClientRect(), left=window.scrollX+r.right-190;  // 190 = .calmenu min-width
+    if(left<8) left=8;
+    m.style.left=left+"px"; m.style.top=(window.scrollY+r.bottom+6)+"px";
+    m.classList.add("on");
   }
-  // close the add-to-calendar menu on any click outside it (registered once)
+  // close the calendar menu on any click outside it or a card icon (registered once)
   document.addEventListener("click",function(e){
     var m=$("calMenu");
-    if(m && m.classList.contains("on") && !e.target.closest(".caldrop")) m.classList.remove("on");
+    if(m.classList.contains("on") && !e.target.closest("#calMenu") && !e.target.closest(".card-cal")) m.classList.remove("on");
   });
 
   function openEvent(t){
@@ -482,7 +481,6 @@ window.TOURNAMENTS = __DATA__;
     if(t.chess_results_url) rows+=linkRow(LL.chess_results,t.chess_results_url);
     if(t.ausschreibung_url) rows+=linkRow(LL.ausschreibung,t.ausschreibung_url,"PDF");
     $("evLinks").innerHTML = rows || '<li class="empty">'+L.noLinks+'</li>';
-    renderCal(t);
     $("scrim").classList.add("on"); $("ev").classList.add("on");
   }
 
@@ -514,8 +512,10 @@ window.TOURNAMENTS = __DATA__;
       var statusTxt=t.status==="expected"?L.expected:L.confirmed;
       c.innerHTML = tile(t) +
         '<div class="c-mid"><div class="c-name">'+nameOf(t)+'</div><div class="c-meta">'+metaLine(t)+'</div>'+roundsLine(t)+'</div>'+
-        '<div class="c-right"><span class="status '+statusCls+'">'+dot+' '+statusTxt+'</span></div>';
+        '<div class="c-right"><span class="status '+statusCls+'">'+dot+' '+statusTxt+'</span>'+
+          '<button class="card-cal" aria-label="'+esc(L.toCal)+'" title="'+esc(L.toCal)+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.5V6a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h6.5"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/><path d="M17.5 15v6M14.5 18h6"/></svg></button></div>';
       c.onclick=function(){ openEvent(t); };
+      var cc=c.querySelector(".card-cal"); if(cc) cc.onclick=function(e){ e.stopPropagation(); openCalMenu(t,this); };
       list.insertBefore(c,emptyNode);
     });
     $("count").textContent=items.length;
