@@ -108,6 +108,11 @@
     font:inherit;font-size:14.5px;font-weight:500;cursor:pointer;letter-spacing:-.01em;transition:.12s}
   .opt:hover{border-color:#c7c7cc;color:var(--ink)}
   .opt.sel{background:var(--blue-tint);color:var(--blue);border-color:var(--blue-bd)}
+  .evcal{margin-top:16px;padding-top:14px;border-top:1px solid var(--sep-soft)}
+  .evcal-t{font-size:12.5px;font-weight:600;color:var(--ink-2);margin-bottom:9px}
+  .evcal-row{display:flex;gap:9px;flex-wrap:wrap}
+  .calbtn{display:inline-flex;align-items:center;height:36px;padding:0 15px;border:1px solid var(--sep);border-radius:var(--r-pill);background:#fff;color:var(--ink-2);font-family:inherit;font-size:13.5px;cursor:pointer;text-decoration:none}
+  .calbtn:hover{border-color:#c7c7cc;color:var(--ink)}
   .sheet-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 24px;border-top:1px solid var(--sep-soft)}
   .reset{border:0;background:transparent;color:var(--link);font:inherit;font-size:15px;font-weight:500;cursor:pointer;padding:8px 4px}
   .apply{flex:1;max-width:240px;height:46px;border:0;border-radius:var(--r-pill);background:var(--blue);color:#fff;font:inherit;font-size:16px;font-weight:500;cursor:pointer;letter-spacing:-.01em}
@@ -213,6 +218,7 @@
       <div class="ev-sub" id="evSub"></div>
     </div>
     <ul class="elinks" id="evLinks"></ul>
+    <div class="evcal" id="evCal"></div>
   </div>
 </div>
 
@@ -388,6 +394,56 @@ window.TOURNAMENTS = __DATA__;
              '</span><span class="rt">'+(hint?'<span class="hint">'+hint+'</span>':'')+EXT+'</span></a></li>';
     return '<li><div class="elink text"><span class="lk">'+label+'</span><span class="val">'+esc(val)+'</span></div></li>';
   }
+  // ---- add to calendar (per event) ----------------------------------------
+  // icsEvent() MUST mirror bcc.build._vevent's ALL-DAY form: DTSTART;VALUE=DATE and
+  // DTEND;VALUE=DATE = end_date + 1 (RFC-5545 exclusive end). Contract pinned by
+  // tests/test_build.py TestIcs.test_dtend_exclusive — keep the two in sync.
+  function ymd(iso){ return iso.replace(/-/g,""); }
+  function nextDay(iso){ var d=new Date(iso+"T00:00:00Z"); d.setUTCDate(d.getUTCDate()+1); return d.toISOString().slice(0,10); }
+  function icsEsc(s){ return String(s).replace(/([\\;,])/g,"\\$1").replace(/\n/g,"\\n"); }
+  function calTitle(t){ return (t.status==="expected"?"[erwartet] ":"")+nameOf(t); }
+  function calLoc(t){ return [t.venue,t.city].filter(Boolean).join(", "); }
+  function calDesc(t){
+    var b=[valLabel("kind",t.kind)];
+    if(t.organizer) b.push(t.organizer);
+    if(t.status==="expected") b.push(lang==="de"?"erwartet, noch nicht bestätigt":"expected, not yet announced");
+    var d=b.join(" · ");
+    if(t.source_url) d+="\n\n"+t.source_url;
+    return d;
+  }
+  function icsEvent(t){
+    var lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Berliner Schachkalender//bcc//DE","CALSCALE:GREGORIAN","METHOD:PUBLISH",
+      "BEGIN:VEVENT","UID:"+t.id+"@berliner-schachkalender","DTSTAMP:"+ymd(t.last_verified||t.start_date)+"T000000Z",
+      "DTSTART;VALUE=DATE:"+ymd(t.start_date),"DTEND;VALUE=DATE:"+ymd(nextDay(t.end_date)),
+      "SUMMARY:"+icsEsc(calTitle(t)),"DESCRIPTION:"+icsEsc(calDesc(t))];
+    if(calLoc(t)) lines.push("LOCATION:"+icsEsc(calLoc(t)));
+    lines.push("STATUS:"+(t.status==="expected"?"TENTATIVE":t.status==="cancelled"?"CANCELLED":"CONFIRMED"),
+      "TRANSP:TRANSPARENT","END:VEVENT","END:VCALENDAR");
+    return lines.join("\r\n")+"\r\n";
+  }
+  function qs(pairs){ return pairs.map(function(p){return p[0]+"="+encodeURIComponent(p[1]);}).join("&"); }
+  function gcalHref(t){
+    return "https://calendar.google.com/calendar/render?"+qs([["action","TEMPLATE"],["text",calTitle(t)],
+      ["dates",ymd(t.start_date)+"/"+ymd(nextDay(t.end_date))],["details",calDesc(t)],["location",calLoc(t)],["ctz","Europe/Berlin"]]);
+  }
+  function outlookHref(t){
+    return "https://outlook.live.com/calendar/0/deeplink/compose?"+qs([["path","/calendar/action/compose"],["rru","addevent"],
+      ["allday","true"],["subject",calTitle(t)],["startdt",t.start_date],["enddt",nextDay(t.end_date)],["body",calDesc(t)],["location",calLoc(t)]]);
+  }
+  function downloadIcs(t){
+    var url=URL.createObjectURL(new Blob([icsEvent(t)],{type:"text/calendar;charset=utf-8"}));
+    var a=document.createElement("a"); a.href=url; a.download=t.id+".ics";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); },2000);
+  }
+  function renderCal(t){
+    $("evCal").innerHTML='<div class="evcal-t">'+L.toCal+'</div><div class="evcal-row">'+
+      '<a class="calbtn" target="_blank" rel="noopener" href="'+esc(gcalHref(t))+'">Google</a>'+
+      '<a class="calbtn" target="_blank" rel="noopener" href="'+esc(outlookHref(t))+'">Outlook</a>'+
+      '<button class="calbtn" id="calIcs">Apple / .ics</button></div>';
+    $("calIcs").onclick=function(){ downloadIcs(t); };
+  }
+
   function openEvent(t){
     $("evName").textContent=nameOf(t);
     var dl=$("evDeadline");
@@ -412,6 +468,7 @@ window.TOURNAMENTS = __DATA__;
     if(t.chess_results_url) rows+=linkRow(LL.chess_results,t.chess_results_url);
     if(t.ausschreibung_url) rows+=linkRow(LL.ausschreibung,t.ausschreibung_url,"PDF");
     $("evLinks").innerHTML = rows || '<li class="empty">'+L.noLinks+'</li>';
+    renderCal(t);
     $("scrim").classList.add("on"); $("ev").classList.add("on");
   }
 

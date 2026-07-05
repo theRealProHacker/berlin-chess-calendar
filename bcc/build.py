@@ -160,6 +160,8 @@ def _fold(line):
 
 
 def _vevent(t):
+    # The all-day VEVENT shape (DTSTART;VALUE=DATE, DTEND = end+1) is mirrored by
+    # site/template.html icsEvent() for per-event "add to calendar" — keep the two in sync.
     end = date.fromisoformat(t["end_date"]) + timedelta(days=1)  # iCal DTEND is exclusive
     summary = ("[erwartet] " if t["status"] == "expected" else "") + t["name"]
     bits = [t["kind"]]
