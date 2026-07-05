@@ -321,8 +321,8 @@
     "rounds_count": 9,
     "name": "Berliner Mannschaftsmeisterschaft (BMM) 2026/27",
     "kind": "league",
-    "start_date": "2026-09-20",
-    "end_date": "2027-04-25",
+    "start_date": "2026-09-27",
+    "end_date": "2027-04-18",
     "variant": "standard",
     "time_control": "classical",
     "age_limit": ["open"],
@@ -335,7 +335,8 @@
     "organizer": "Berliner Schachverband",
     "city": "Berlin",
     "notes": "9 Runden over the season. Exact round dates to be hand-entered from the Terminplan PDF (T2627).",
-    "last_verified": "2026-06-25"
+    "last_verified": "2026-07-05",
+    "rounds": ["2026-09-27", "2026-10-11", "2026-11-08", "2026-11-22", "2027-01-10", "2027-01-24", "2027-02-21", "2027-03-07", "2027-04-18"]
   },
   {
     "id": "kindersommeropen-2026",
