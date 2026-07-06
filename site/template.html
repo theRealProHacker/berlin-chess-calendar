@@ -50,6 +50,23 @@
   .filter-btn .badge{min-width:20px;height:20px;padding:0 6px;border-radius:var(--r-pill);background:var(--blue);color:#fff;
     font-size:12px;font-weight:600;display:none;align-items:center;justify-content:center}
   .filter-btn.has .badge{display:inline-flex}
+  .sep-v{width:1px;height:24px;background:var(--sep);flex:none}
+  .presets{display:inline-flex;gap:8px;align-items:center}
+  .pwrap{position:relative;display:inline-block}
+  .preset{display:inline-flex;align-items:center;gap:7px;height:40px;padding:0 15px;border:1px solid var(--sep);border-radius:var(--r-pill);background:#fff;color:var(--ink-2);font:inherit;font-size:14.5px;font-weight:500;cursor:pointer;letter-spacing:-.01em;transition:.12s;white-space:nowrap}
+  .preset:hover{border-color:#c7c7cc;color:var(--ink)}
+  .preset.sel{background:var(--blue-tint);color:var(--blue);border-color:var(--blue-bd)}
+  .preset:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+  .preset .caret{font-size:10px;opacity:.8}
+  .preset .pick{font-weight:600}
+  .agemenu{position:absolute;top:calc(100% + 8px);left:0;z-index:70;background:#fff;border:1px solid var(--sep);border-radius:14px;box-shadow:var(--shadow-pop);padding:10px;display:none}
+  .agemenu.on{display:block}
+  .amenu-h{font-size:12px;font-weight:600;color:var(--ink-3);letter-spacing:.03em;text-transform:uppercase;padding:2px 4px 9px}
+  .agegrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .agegrid.narrow{grid-template-columns:repeat(2,1fr)}
+  .agechip{min-width:56px;height:38px;padding:0 12px;border:1px solid var(--sep);border-radius:10px;background:#fff;color:var(--ink);font:inherit;font-size:14px;font-weight:500;cursor:pointer;transition:.12s;white-space:nowrap}
+  .agechip:hover{background:var(--surface)}
+  .agechip.sel{background:var(--blue-tint);color:var(--blue);border-color:var(--blue-bd)}
   .achips{display:flex;gap:7px;align-items:center;overflow:hidden;flex:1;min-width:0}
   .achip{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 7px 0 12px;border-radius:var(--r-pill);
     background:var(--blue-tint);color:var(--blue);border:1px solid var(--blue-bd);font-size:13.5px;font-weight:500;white-space:nowrap;cursor:pointer}
@@ -199,6 +216,8 @@
     <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4 2v-8z"/></svg>
     <span id="filterLabel">Filter</span> <span class="badge" id="fbadge">0</span>
   </button>
+  <span class="sep-v"></span>
+  <div class="presets" id="presets"></div>
   <div class="achips" id="achips"></div>
   <span class="tb-count"><b id="count">0</b> <span id="countWord">Turniere</span></span>
   <!-- full-calendar subscribe commented out; per-tournament add-to-calendar replaces it
@@ -276,7 +295,8 @@ window.TOURNAMENTS = __DATA__;
       part:{single:"Einzel",duo:"Duo",team:"Team"},
       format:{block:"Block",weekly:"Wöchentlich",biweekly:"14-täglich",other:"Andere"},
       region:{berlin:"Berlin",nearby:"Umland",national:"National"},
-      age:{open:"Offen"}
+      age:{open:"Offen"},
+      presets:{reg:"Regulär",youth:"Jugend",stud:"Studierende",older:"Älter",agegroup:"Altersklasse"}
     },
     en:{
       brand:"Berlin Chess Calendar",
@@ -302,7 +322,8 @@ window.TOURNAMENTS = __DATA__;
       part:{single:"Single",duo:"Pairs",team:"Team"},
       format:{block:"Single block",weekly:"Weekly",biweekly:"Fortnightly",other:"Other"},
       region:{berlin:"Berlin",nearby:"Surrounding",national:"National"},
-      age:{open:"Open"}
+      age:{open:"Open"},
+      presets:{reg:"Regular",youth:"Youth",stud:"Students",older:"Older",agegroup:"Age group"}
     }
   };
 
@@ -310,6 +331,9 @@ window.TOURNAMENTS = __DATA__;
   var AXIS_FIELD = {region:"region",variant:"variant",tc:"time_control",age:"age_limit",part:"participation",format:"schedule_format",org:"organizer"};
   var lang = "de", L = I18N.de;
   var state = {}; // axis -> array of selected values
+  var preset = null; // F3 active preset pill: null | {kind:"reg"} | {kind:"youth"|"stud", age}
+  var YOUTH = ["U8","U10","U12","U14","U16","U18","U20","U25"];
+  var STUD = ["U18","U20","U25","older"]; // "older" maps to open
 
   function $(id){return document.getElementById(id);}
   function el(tag,cls){var e=document.createElement(tag); if(cls)e.className=cls; return e;}
@@ -547,7 +571,7 @@ window.TOURNAMENTS = __DATA__;
     $("count").textContent=items.length;
     emptyNode.textContent=L.empty;
     emptyNode.classList.toggle("on",items.length===0);
-    renderChips();
+    renderChips(); renderPresets();
     // full-calendar subscribe commented out (per-tournament add-to-calendar replaces it):
     // $("subBtn").onclick=function(){ location.href="calendar.ics"+stateQuery(); };
     // $("subBtn").title=(lang==="de"?"Abonniert genau diese ":"Subscribes to exactly these ")+items.length+(lang==="de"?" Turniere":" tournaments");
@@ -557,14 +581,54 @@ window.TOURNAMENTS = __DATA__;
 
   function renderChips(){
     var box=$("achips"); box.innerHTML=""; var n=0;
-    Object.keys(state).forEach(function(ax){ (state[ax]||[]).forEach(function(v){
+    Object.keys(state).forEach(function(ax){ if(ax==="age"&&preset)return; (state[ax]||[]).forEach(function(v){
       n++;
       var b=el("button","achip"); b.innerHTML=valLabel(ax,v)+' <x>×</x>';
-      b.onclick=function(){ state[ax]=state[ax].filter(function(x){return x!==v;}); if(!state[ax].length)delete state[ax]; syncModal(); render(); };
+      b.onclick=function(){ state[ax]=state[ax].filter(function(x){return x!==v;}); if(!state[ax].length)delete state[ax]; if(ax==="age")preset=null; syncModal(); render(); };
       box.appendChild(b);
     });});
     var fb=$("openFilter"); $("fbadge").textContent=n; fb.classList.toggle("has",n>0);
   }
+
+  // ---- F3 audience presets (Regulär / Jugend / Studierende) -> the age axis ----
+  function renderPresets(){
+    var P=L.presets;
+    function ageMenu(kind,ages,narrow){
+      var chips=ages.map(function(a){
+        var lbl=(a==="older")?P.older:a, sel=preset&&preset.kind===kind&&preset.age===a;
+        return '<button class="agechip'+(sel?" sel":"")+'" role="menuitem" data-p="'+kind+'" data-age="'+a+'">'+lbl+'</button>';
+      }).join("");
+      return '<div class="agemenu" role="menu"><div class="amenu-h">'+P.agegroup+'</div><div class="agegrid'+(narrow?" narrow":"")+'">'+chips+'</div></div>';
+    }
+    function pill(kind,label,menu){
+      var sel=preset&&preset.kind===kind, txt=label;
+      if(menu&&sel&&preset.age){ var pk=(preset.age==="older")?P.older:preset.age; txt=label+' · <span class="pick">'+pk+'</span>'; }
+      var b='<button class="preset'+(sel?" sel":"")+'" data-p="'+kind+'"'+(menu?' aria-haspopup="menu"':'')+'>'+txt+(menu?' <span class="caret">&#9662;</span>':'')+'</button>';
+      return menu?('<span class="pwrap">'+b+menu+'</span>'):b;
+    }
+    $("presets").innerHTML = pill("reg",P.reg,null)
+      + pill("youth",P.youth,ageMenu("youth",YOUTH,false))
+      + pill("stud",P.stud,ageMenu("stud",STUD,true));
+  }
+  function syncPreset(){ // infer the pill highlight from state.age (deep-link init)
+    var a=state.age||[];
+    if(a.length===1&&a[0]==="open") preset={kind:"reg"};
+    else if(a.length===1&&YOUTH.indexOf(a[0])>-1) preset={kind:"youth",age:a[0]};
+    else preset=null;
+  }
+  function initPreset(){ if(!state.age||!state.age.length){ state.age=["open"]; preset={kind:"reg"}; } else syncPreset(); }
+  function presetsClick(e){
+    var chip=e.target.closest(".agechip");
+    if(chip){ var ck=chip.getAttribute("data-p"), a=chip.getAttribute("data-age");
+      state.age=[a==="older"?"open":a]; preset={kind:ck,age:a}; render(); return; }
+    var p=e.target.closest(".preset"); if(!p) return;
+    var k=p.getAttribute("data-p");
+    if(k==="reg"){ state.age=["open"]; preset={kind:"reg"}; render(); return; }
+    var menu=p.parentElement.querySelector(".agemenu"), open=menu.classList.contains("on");
+    $("presets").querySelectorAll(".agemenu").forEach(function(m){m.classList.remove("on");});
+    if(!open) menu.classList.add("on");
+  }
+  function presetsOutside(e){ if(!e.target.closest("#presets")) $("presets").querySelectorAll(".agemenu.on").forEach(function(m){m.classList.remove("on");}); }
 
   // ---- modal ----
   function buildModal(){
@@ -617,11 +681,14 @@ window.TOURNAMENTS = __DATA__;
   $("evClose").onclick=closeAll;
   $("scrim").onclick=closeAll;
   document.addEventListener("keydown",function(e){if(e.key==="Escape")closeAll();});
-  $("applyFilter").onclick=function(){ collectModal(); closeModal(); render(); };
-  $("resetFilter").onclick=function(){ state={}; buildModal(); render(); };
+  $("applyFilter").onclick=function(){ var b=(state.age||[]).join(","); collectModal(); if((state.age||[]).join(",")!==b) preset=null; closeModal(); render(); };
+  $("resetFilter").onclick=function(){ state={}; preset=null; buildModal(); render(); };
   document.querySelectorAll("[data-lang]").forEach(function(b){ b.onclick=function(){setLang(b.dataset.lang);}; });
 
+  $("presets").addEventListener("click", presetsClick);
+  document.addEventListener("click", presetsOutside);
   readURL();
+  initPreset();
   setLang("de");
 })();
 </script>
