@@ -173,6 +173,11 @@
     .sheet.on{transform:translateY(0)}
     .sheet::before{content:"";position:absolute;top:9px;left:50%;transform:translateX(-50%);width:40px;height:5px;border-radius:3px;background:#d8d8dc}
     .sheet-head{padding-top:24px}
+    /* finger-size touch targets on mobile (>=44px) */
+    .lang button{min-height:44px}
+    .filter-btn{height:44px}
+    .card-sub{min-height:44px}
+    .sheet-x{width:40px;height:40px;font-size:17px}
   }
   @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}}
 </style>
