@@ -7,7 +7,7 @@
 <style>
   :root{
     --bg:#ffffff; --surface:#f5f5f7; --surface-2:#fbfbfd;
-    --ink:#1d1d1f; --ink-2:#6e6e73; --ink-3:#86868b;
+    --ink:#1d1d1f; --ink-2:#6e6e73; --ink-3:#767679;
     --sep:#e3e3e6; --sep-soft:rgba(0,0,0,.06);
     --blue:#0071e3; --blue-hover:#0077ed; --blue-tint:#eaf3ff; --blue-bd:#bcdcff; --link:#06c;
     --green:#1d8a3f; --green-bg:#eaf7ee;
@@ -15,6 +15,7 @@
     --red:#d70015;
     --r-card:20px; --r-tile:14px; --r-pill:980px;
     --shadow:0 1px 3px rgba(0,0,0,.04),0 8px 30px rgba(0,0,0,.05);
+    --shadow-pop:0 6px 20px rgba(0,0,0,.12);
     --shadow-h:0 12px 40px rgba(0,0,0,.10);
     --shadow-modal:0 20px 60px rgba(0,0,0,.22);
     --font:"SF Pro Display","SF Pro Text",-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif;
@@ -65,10 +66,11 @@
   .list{padding:14px 0 80px}
   .month{font-size:13px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);margin:36px 0 14px;padding-left:4px}
   .month:first-child{margin-top:18px}
-  .card{display:grid;grid-template-columns:84px 1fr auto;gap:24px;align-items:center;background:var(--surface-2);
-    border:1px solid var(--sep-soft);border-radius:var(--r-card);padding:24px 28px;margin-bottom:16px;
-    box-shadow:var(--shadow);transition:transform .2s ease,box-shadow .2s ease;cursor:pointer}
-  .card:hover{transform:translateY(-2px);box-shadow:var(--shadow-h)}
+  .card{display:grid;grid-template-columns:1fr auto;background:var(--surface-2);
+    border:1px solid var(--sep-soft);border-radius:var(--r-card);margin-bottom:16px;box-shadow:var(--shadow);overflow:hidden}
+  .card-open{display:grid;grid-template-columns:84px 1fr;gap:24px;align-items:center;padding:24px 20px 24px 28px;cursor:pointer;transition:background .15s ease}
+  .card-open:hover{background:rgba(0,113,227,.035)}
+  .card-open:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
   .card.expected{background:var(--amber-bg);border-style:dashed;border-color:var(--amber-line)}
   .tile{width:84px;height:84px;border-radius:var(--r-tile);background:#fff;border:1px solid var(--sep-soft);display:grid;place-content:center;text-align:center;line-height:1}
   .tile .mo{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--red)}
@@ -81,7 +83,8 @@
   .c-meta b{color:var(--green);font-weight:600}
   .c-meta .dl{color:var(--amber);font-weight:600}
   .rounds{font-size:13.5px;color:var(--ink-2);margin-top:8px}
-  .c-right{display:flex;flex-direction:column;align-items:flex-end;gap:11px;text-align:right}
+  .card-side{display:flex;flex-direction:column;align-items:flex-end;justify-content:center;gap:11px;text-align:right;padding:24px 28px 24px 22px;border-left:1px solid var(--sep-soft)}
+  .card.expected .card-side{border-left-color:var(--amber-line)}
   .status{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;padding:6px 13px;border-radius:var(--r-pill);white-space:nowrap}
   .status.c{color:var(--green);background:var(--green-bg)}
   .status.e{color:var(--amber);background:#fff4dc}
@@ -108,14 +111,17 @@
     font:inherit;font-size:14.5px;font-weight:500;cursor:pointer;letter-spacing:-.01em;transition:.12s}
   .opt:hover{border-color:#c7c7cc;color:var(--ink)}
   .opt.sel{background:var(--blue-tint);color:var(--blue);border-color:var(--blue-bd)}
-  .card-sub{display:inline-flex;align-items:center;gap:6px;background:var(--blue);color:#fff;border:0;border-radius:var(--r-pill);padding:6px 13px;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap}
-  .card-sub:hover{background:#005fc4}
-  .card-sub svg{width:15px;height:15px;stroke:#fff}
-  .card-sub .caret{font-size:10px;opacity:.9}
-  .calmenu{position:absolute;z-index:60;min-width:190px;background:#fff;border:1px solid var(--sep);border-radius:12px;box-shadow:var(--shadow-modal);padding:6px;display:none}
+  .card-sub{display:inline-flex;align-items:center;gap:7px;min-height:40px;padding:0 15px;background:transparent;color:var(--blue);border:1px solid var(--blue-bd);border-radius:var(--r-pill);font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s ease,border-color .15s ease}
+  .card-sub:hover{background:var(--blue-tint);border-color:var(--blue)}
+  .card-sub:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+  .card-sub svg{width:15px;height:15px;stroke:currentColor}
+  .card-sub .caret{font-size:10px;opacity:.85}
+  .calmenu{position:absolute;z-index:60;width:238px;background:#fff;border:1px solid var(--sep);border-radius:14px;box-shadow:var(--shadow-pop);padding:6px;display:none}
   .calmenu.on{display:block}
-  .calitem{display:block;width:100%;text-align:left;padding:9px 12px;border:0;border-radius:8px;background:none;color:var(--ink);font-family:inherit;font-size:14px;cursor:pointer;text-decoration:none}
-  .calitem:hover{background:var(--blue-tint);color:var(--blue)}
+  .calrow{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border:0;border-radius:10px;background:none;color:var(--ink);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;text-decoration:none}
+  .calrow:hover{background:var(--surface)}
+  .calrow:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+  .calrow svg{width:18px;height:18px;flex:none}
   .sheet-foot{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:16px 24px;border-top:1px solid var(--sep-soft)}
   .reset{border:0;background:transparent;color:var(--link);font:inherit;font-size:15px;font-weight:500;cursor:pointer;padding:8px 4px}
   .apply{flex:1;max-width:240px;height:46px;border:0;border-radius:var(--r-pill);background:var(--blue);color:#fff;font:inherit;font-size:16px;font-weight:500;cursor:pointer;letter-spacing:-.01em}
@@ -156,14 +162,17 @@
     .achips{order:3;flex-basis:100%;flex-wrap:wrap}
     .tb-count{display:none}
     .subnote{display:none}
-    .card{grid-template-columns:64px 1fr;gap:16px;padding:18px}
-    .c-right{grid-column:2;flex-direction:row;align-items:center;justify-content:flex-start;gap:14px;margin-top:2px}
+    .card{grid-template-columns:1fr}
+    .card-open{grid-template-columns:64px 1fr;gap:16px;padding:16px}
+    .card-side{flex-direction:row;justify-content:flex-start;align-items:center;gap:14px;border-left:0;border-top:1px solid var(--sep-soft);padding:12px 16px}
+    .card.expected .card-side{border-top-color:var(--amber-line)}
     .tile{width:64px;height:64px} .tile .dy{font-size:24px}
     .sheet{left:0;top:auto;bottom:0;transform:translateY(20px);width:100%;max-width:100%;max-height:88vh;border-radius:22px 22px 0 0}
     .sheet.on{transform:translateY(0)}
     .sheet::before{content:"";position:absolute;top:9px;left:50%;transform:translateX(-50%);width:40px;height:5px;border-radius:3px;background:#d8d8dc}
     .sheet-head{padding-top:24px}
   }
+  @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important}}
 </style>
 </head>
 <body>
@@ -224,7 +233,7 @@
   </div>
 </div>
 
-<div class="calmenu" id="calMenu"></div>
+<div class="calmenu" id="calMenu" role="menu"></div>
 
 <script>
 window.TOURNAMENTS = __DATA__;
@@ -440,14 +449,18 @@ window.TOURNAMENTS = __DATA__;
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
     setTimeout(function(){ URL.revokeObjectURL(url); },2000);
   }
-  // one shared popover, repositioned to the clicked card's icon (not one menu per card)
+  // full-color provider logo marks for the add-to-calendar menu
+  var CAL_G='<svg viewBox="0 0 48 48"><path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z"/><path fill="#34A853" d="M24 46c5.94 0 10.92-1.97 14.56-5.33l-7.11-5.52c-1.97 1.32-4.49 2.1-7.45 2.1-5.73 0-10.58-3.87-12.31-9.07H4.34v5.7C7.96 41.07 15.4 46 24 46z"/><path fill="#FBBC05" d="M11.69 28.18C11.25 26.86 11 25.45 11 24s.25-2.86.69-4.18v-5.7H4.34C2.85 17.09 2 20.45 2 24s.85 6.91 2.34 9.88l7.35-5.7z"/><path fill="#EA4335" d="M24 10.75c3.23 0 6.13 1.11 8.41 3.29l6.31-6.31C34.91 4.18 29.93 2 24 2 15.4 2 7.96 6.93 4.34 14.12l7.35 5.7c1.73-5.2 6.58-9.07 12.31-9.07z"/></svg>';
+  var CAL_O='<svg viewBox="0 0 24 24"><path fill="#F25022" d="M1 1h10v10H1z"/><path fill="#7FBA00" d="M13 1h10v10H13z"/><path fill="#00A4EF" d="M1 13h10v10H1z"/><path fill="#FFB900" d="M13 13h10v10H13z"/></svg>';
+  var CAL_A='<svg viewBox="0 0 24 24"><path fill="#000" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.043 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>';
+  // one shared popover, repositioned to the clicked card's button (not one menu per card)
   function openCalMenu(t, anchor){
     var m=$("calMenu");
-    m.innerHTML='<a class="calitem" target="_blank" rel="noopener" href="'+esc(gcalHref(t))+'">Google</a>'+
-      '<a class="calitem" target="_blank" rel="noopener" href="'+esc(outlookHref(t))+'">Outlook</a>'+
-      '<button class="calitem" id="calIcs">Apple / .ics</button>';
+    m.innerHTML='<a class="calrow" role="menuitem" target="_blank" rel="noopener" href="'+esc(gcalHref(t))+'">'+CAL_G+'Google Kalender</a>'+
+      '<a class="calrow" role="menuitem" target="_blank" rel="noopener" href="'+esc(outlookHref(t))+'">'+CAL_O+'Outlook</a>'+
+      '<button class="calrow" role="menuitem" id="calIcs">'+CAL_A+'Apple (.ics)</button>';
     $("calIcs").onclick=function(){ downloadIcs(t); m.classList.remove("on"); };
-    var r=anchor.getBoundingClientRect(), left=window.scrollX+r.right-190;  // 190 = .calmenu min-width
+    var r=anchor.getBoundingClientRect(), left=window.scrollX+r.right-238;  // 238 = .calmenu width
     if(left<8) left=8;
     m.style.left=left+"px"; m.style.top=(window.scrollY+r.bottom+6)+"px";
     m.classList.add("on");
@@ -511,11 +524,16 @@ window.TOURNAMENTS = __DATA__;
       var statusCls=t.status==="expected"?"e":"c";
       var dot=t.status==="expected"?"◌":"●";
       var statusTxt=t.status==="expected"?L.expected:L.confirmed;
-      c.innerHTML = tile(t) +
-        '<div class="c-mid"><div class="c-name">'+nameOf(t)+'</div><div class="c-meta">'+metaLine(t)+'</div>'+roundsLine(t)+'</div>'+
-        '<div class="c-right"><span class="status '+statusCls+'">'+dot+' '+statusTxt+'</span>'+
-          '<button class="card-sub" aria-haspopup="true"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>'+esc(L.subscribe)+' <span class="caret">&#9662;</span></button></div>';
-      c.onclick=function(){ openEvent(t); };
+      c.innerHTML =
+        '<div class="card-open" tabindex="0" role="button" aria-label="'+esc(nameOf(t))+'">'+
+          tile(t) +
+          '<div class="c-mid"><div class="c-name">'+nameOf(t)+'</div><div class="c-meta">'+metaLine(t)+'</div>'+roundsLine(t)+'</div>'+
+        '</div>'+
+        '<div class="card-side"><span class="status '+statusCls+'">'+dot+' '+statusTxt+'</span>'+
+          '<button class="card-sub" aria-haspopup="true" aria-label="'+esc(L.subscribe+" – "+nameOf(t))+'"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="3"/><path d="M3 9.5h18M8 2.5v4M16 2.5v4"/></svg>'+esc(L.subscribe)+' <span class="caret">&#9662;</span></button></div>';
+      var op=c.querySelector(".card-open");
+      op.onclick=function(){ openEvent(t); };
+      op.onkeydown=function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openEvent(t); } };
       var cc=c.querySelector(".card-sub"); if(cc) cc.onclick=function(e){ e.stopPropagation(); openCalMenu(t,this); };
       list.insertBefore(c,emptyNode);
     });
