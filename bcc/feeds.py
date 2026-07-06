@@ -490,3 +490,43 @@ def dedup(events, window=3):
         else:
             groups.append({"nn": nn, "evs": [ev]})
     return groups
+
+
+# ---- BSV season Terminplan (PDF) -> BMM round dates + Schnellschach EM/MM -------------
+# The Landesspielleiter's season Terminplan (a wall-calendar PDF) is the earliest source for the
+# BMM round dates and the Schnellschach EM/MM. termine.html links one PDF per season; the filename
+# suffix is inconsistent (T2627.pdf vs T2526-1S.pdf), so the newest is picked by link *text*.
+_TERMINPLAN_RE = re.compile(r"Terminplan\s+(\d{4})\s*/\s*(\d{2})\s+des\s+Landesspiel", re.I)
+
+
+def terminplan_pdf_url(home_html):
+    """Newest 'Terminplan YYYY/YY des Landesspielleiters' PDF on termine.html -> (url, y1, y2) or None."""
+    best = None
+    for m in re.finditer(r'<a\b[^>]*?href="([^"]+?\.pdf[^"]*)"[^>]*>(.*?)</a>', home_html, re.I | re.S):
+        tm = _TERMINPLAN_RE.search(re.sub(r"<[^>]+>", " ", m.group(2)))
+        if not tm:
+            continue
+        y1, y2 = int(tm.group(1)), 2000 + int(tm.group(2))
+        if best is None or y1 > best[1]:
+            best = (urljoin(BSV_HOME, html.unescape(m.group(1))), y1, y2)
+    return best
+
+
+def parse_terminplan(text, y1, y2):
+    """`pdftotext -layout` of a Terminplan -> {bmm_rounds:[ISO...], schnellschach_em, schnellschach_mm}.
+
+    BMM rounds come from the calendar markers 'BMM N' (N=1..9), each preceded by its day (e.g.
+    'So, 27.9. BMM 1'); Sep-Dec fall in y1, Jan-Jul in y2. Schnellschach EM/MM read off the legend
+    lines 'BSEM DD.MM.YYYY Berliner Schnellschach-EM' / 'BSMM ...'.
+    """
+    def iso(d, mo):
+        d, mo = int(d), int(mo)
+        return f"{(y1 if mo >= 8 else y2):04d}-{mo:02d}-{d:02d}"
+    rounds = {}
+    for m in re.finditer(r"(\d{1,2})\.(\d{1,2})\.\s+BMM\s?(\d)\b", text):
+        rounds[int(m.group(3))] = iso(m.group(1), m.group(2))
+    out = {"bmm_rounds": [rounds[k] for k in sorted(rounds)]}
+    for lbl, key in (("BSEM", "schnellschach_em"), ("BSMM", "schnellschach_mm")):
+        m = re.search(r"\b" + lbl + r"\s+(\d{1,2})\.(\d{1,2})\.(\d{4})\s+Berlin", text)
+        out[key] = f"{m.group(3)}-{int(m.group(2)):02d}-{int(m.group(1)):02d}" if m else None
+    return out

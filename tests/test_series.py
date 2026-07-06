@@ -256,6 +256,27 @@ class TestBacktest(unittest.TestCase):
             self.assertEqual(pred["start_date"], ts, f"Grenke {year} predict must be exact")
 
 
+class TestTerminplan(unittest.TestCase):
+    """The BSV season Terminplan (PDF) -> BMM rounds + Schnellschach, off stored fixtures."""
+
+    def test_parse_rounds_and_schnellschach(self):
+        from bcc import feeds
+        txt = (FX / "terminplan-2627.txt").read_text(encoding="utf-8")
+        p = feeds.parse_terminplan(txt, 2026, 2027)
+        self.assertEqual(len(p["bmm_rounds"]), 9)
+        self.assertEqual(p["bmm_rounds"][0], "2026-09-27")
+        self.assertEqual(p["bmm_rounds"][-1], "2027-04-18")
+        self.assertEqual(p["bmm_rounds"], sorted(p["bmm_rounds"]))         # ascending
+        self.assertEqual(p["schnellschach_em"], "2027-06-26")
+        self.assertEqual(p["schnellschach_mm"], "2027-06-27")
+
+    def test_pick_newest_pdf_link(self):
+        from bcc import feeds
+        url, y1, y2 = feeds.terminplan_pdf_url((FX / "bsv-termine.html").read_text(encoding="utf-8"))
+        self.assertEqual((y1, y2), (2026, 2027))                          # newest by link text, not filename
+        self.assertTrue(url.startswith("https://") and url.endswith("T2627.pdf"))
+
+
 class TestChessResults(unittest.TestCase):
     """Parse + match the chess-results Berlin search (real captured 2025 results)."""
 

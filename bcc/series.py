@@ -976,6 +976,37 @@ def cmd_suggest(apply=False):
     return drafts
 
 
+def cmd_terminplan(apply=False):
+    """Newest BSV season Terminplan -> BMM round dates + Schnellschach EM/MM (report; --apply writes BMM)."""
+    from . import feeds, add
+    home = feeds.http_get(feeds.BSV_HOME + "termine.html")
+    found = feeds.terminplan_pdf_url(home)
+    if not found:
+        print("no Terminplan link on termine.html", file=sys.stderr)
+        return None
+    url, y1, y2 = found
+    text = pdf_text(url)
+    if text is None:
+        print(f"Terminplan {y1}/{y2 % 100:02d}: {url}\n  pdftotext unavailable / download failed -> manual", file=sys.stderr)
+        return None
+    parsed = feeds.parse_terminplan(text, y1, y2)
+    print(f"# Terminplan {y1}/{y2 % 100:02d}  ({url})", file=sys.stderr)
+    print(json.dumps(parsed, ensure_ascii=False, indent=2))
+    if apply:
+        rounds = parsed["bmm_rounds"]
+        rid = f"berliner-mannschaftsmeisterschaft-{y1}-{y2 % 100:02d}"
+        records = load()
+        rec = next((r for r in records if r["id"] == rid), None)
+        if rec and rounds:
+            rec.update(rounds=rounds, rounds_count=len(rounds), start_date=rounds[0], end_date=rounds[-1])
+            add._write(add._sorted(records))
+            load(add.DATA)
+            print(f"applied {len(rounds)} BMM rounds to {rid}", file=sys.stderr)
+        else:
+            print(f"--apply: record {rid} not found or no rounds parsed; nothing written", file=sys.stderr)
+    return parsed
+
+
 def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     apply = "--apply" in argv
@@ -994,6 +1025,8 @@ def main(argv=None):
         cmd_missing()
     elif cmd == "suggest":
         cmd_suggest(apply)
+    elif cmd == "terminplan":
+        cmd_terminplan(apply)
     else:
         sys.exit(__doc__)
 
