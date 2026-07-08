@@ -8,8 +8,9 @@
 A **predictive, calendar-native** chess-tournament calendar for Berlin. It lists every
 over-the-board tournament in the city and — because tournaments recur every year — shows
 them as *expected* **before they are officially announced**, then promotes them to
-*confirmed* once the announcement lands. Filter across six axes and subscribe to an `.ics`
-feed that mirrors exactly the filter you set.
+*confirmed* once the announcement lands. Filter across seven axes, subscribe to the whole
+calendar as an `.ics` feed, or add any single tournament straight to Google, Outlook, or Apple
+Calendar.
 
 German-first with an English toggle. Open data, open source, free static hosting.
 **Standard library only — no dependencies, no virtualenv, no server.**
@@ -25,9 +26,10 @@ German-first with an English toggle. Open data, open source, free static hosting
 - **Predictive.** Most calendars only show what's already been announced. This one forecasts
   recurring tournaments from their history (`status: expected`, marked `[erwartet]`), so you
   can plan months ahead — then they flip to `confirmed` with real dates when announced.
-- **Calendar-native.** The whole point is the subscription. Hit **Abonnieren** and the
-  `.ics` you get back contains *exactly the tournaments your active filters show*. Change the
-  filters, your subscription changes with it — the URL carries the query.
+- **Calendar-native.** The whole point is that the dates land in your calendar, not in yet
+  another tab you have to remember to check. Subscribe to the whole calendar as an `.ics` feed,
+  or hit **Abonnieren** on any tournament to drop just that event into Google, Outlook, or
+  Apple Calendar.
 - **Honest about provenance.** Every record cites its `sources` and `last_verified` date, and
   auto-guessed fields are flagged `tagged_by: auto` for a human to confirm.
 - **Tiny and durable.** Five small stdlib modules, a single HTML template, and a JSON file.
@@ -67,8 +69,12 @@ library). `validate()` in [`bcc/build.py`](bcc/build.py) is the single gate.
 `time_control` · `age_limit` · `participation` · `schedule_format` · `region` · `status` ·
 `sources` · `last_verified`
 
-**Optional:** `name_en` · `edition` · `rounds` · `organizer` · `venue` · `city` ·
-`prize_pool` · `tagged_by` · `notes` · and the link/registration fields:
+**Optional:** `edition` · `rounds` · `rounds_count` · `series` · `organizer` ·
+`venue` · `city` · `prize_pool` · `tagged_by` · `notes` · and the link/registration fields:
+
+(`rounds_count` is the integer number of rounds — used when a block open has no per-round
+dates; if `rounds` is also present the two must agree. `series` is a slug linking the record to
+its recurring-series class in `bcc.series`.)
 
 | field | meaning |
 |------|---------|
@@ -110,11 +116,16 @@ python3 -m bcc.add set <id> status=confirmed start_date=YYYY-MM-DD end_date=YYYY
   `predict` forecasts each series' next editions from its history (same slot + edition+1 by
   default, or a bespoke rule — Grenke's Easter block, Harald-Lieb's seven Thursdays),
   `confirm` reads the real dates from each series' own source and proposes `expected →
-  confirmed` promotions as a diff you review, `missing` lists what still needs a human, and
-  `suggest` surfaces feed events matching no known series. Confirmation is automated per
-  series (RSS, organizer JSON-LD/HTML, or the Ausschreibung PDF). The PDF path uses
-  `pdftotext` **if it's installed** and otherwise degrades to a manual confirm — nothing that
-  ships or that the test suite runs needs it, so the zero-dependency promise still holds.
+  confirmed` promotions as a diff you review, `check` backtests that layer (does every
+  confirmed edition still reproduce from its source?), `terminplan` pulls the BMM round dates
+  and the Schnellschach EM/MM from the BSV season Terminplan PDF, `missing` lists what still
+  needs a human, and `suggest` surfaces feed events matching no known series. Confirmation is
+  automated per series: **chess-results.com** search (the primary forward source), the
+  **Schachjugend WordPress** source for youth events, organizer RSS / JSON-LD / HTML, and the
+  **Ausschreibung / Terminplan PDF**. The PDF path uses `pdftotext` **if it's installed** and
+  otherwise degrades to a manual confirm — nothing that ships or that the test suite runs needs
+  it, so the zero-dependency promise still holds. Fetched sources are cached on disk for two
+  weeks (`.feedcache/`, git-ignored); `--refetch` forces a live pull.
 
 Two agent workflows live in `.claude/skills/` and ride on top of `bcc.add`:
 **`add-tournament`** (research an off-feed/national event and insert it, with an independent
@@ -138,21 +149,23 @@ python3 -m http.server -d dist               # preview at http://localhost:8000
 ```
 data/tournaments.json   the data — validated dicts, hand-editable, the open dataset
 bcc/build.py            schema + validation + static-site/.ics builder   (python3 -m bcc.build)
-bcc/feeds.py            shared feed parsers (RSS / youth REST / JSON-LD)  (imported by ingest+series)
+bcc/feeds.py            shared source parsers (RSS / REST / JSON-LD / chess-results / Terminplan PDF)
 bcc/ingest.py           discover feed events + dedup + draft records      (python3 -m bcc.ingest)
-bcc/series.py           recurring-series predict/confirm/missing/suggest  (python3 -m bcc.series)
+bcc/series.py           recurring-series predict/confirm/check/missing/suggest/terminplan
 bcc/add.py              deterministic insert/set/skeleton editor          (python3 -m bcc.add)
 site/template.html      the static site (HTML/CSS/vanilla JS, __DATA__ placeholder)
 tests/                  unittest suite + real feed fixtures
 dist/                   build output (git-ignored; built and deployed in CI)
-PLAN.md, RECON-data-sources.md   architecture notes + data-source reconnaissance
+PLAN.md                 forward-looking backlog / open work
+RECON-data-sources.md   data-source reconnaissance notes
 ```
 
 ## Sources & data
 
 Primary sources are the **DSB Turnierdatenbank Berlin** and **Berliner Schachverband** RSS
-feeds plus the **Schachjugend Berlin** REST source. chess-results / chessmanager are
-bot-walled, so per-event links are filled by hand (see
+feeds plus the **Schachjugend Berlin** REST/WordPress source. chess-results' Berlin tournament
+**search** is scraped for series confirmation (walking the ASP.NET WebForms tokens); its
+per-event pages and chessmanager stay bot-walled, so those links are still filled by hand (see
 [`RECON-data-sources.md`](RECON-data-sources.md)). The contents of `data/` are an open dataset —
 free to reuse, attribution appreciated.
 
