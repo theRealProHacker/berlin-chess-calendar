@@ -23,7 +23,9 @@ site built from one JSON file by a few short Python scripts, with no dependencie
 Click a tournament to open its detail sheet. Each event can carry up to four links (Webseite,
 Anmeldung, Chess Results, and the Ausschreibung PDF) plus a registration deadline. `Anmeldung` is
 free text: a sign-up URL when there is one, or a note like „über den Verein" for events you can't
-just register for online. The same links go into the `.ics` event.
+just register for online. The same links go into the `.ics` event. A tournament played over
+several rounds (a league season, a weekly memorial) shows up as its individual round dates, not one
+months-long block.
 
 ![Event detail modal](docs/screenshot-modal.png)
 
@@ -50,7 +52,9 @@ A tournament is a plain `dict` in `data/tournaments.json`, with no ORM or schema
 **Optional:** `edition` · `rounds` · `rounds_count` · `series` · `organizer` · `venue` · `city` ·
 `prize_pool` · `tagged_by` · `notes`, plus the link fields below. `rounds_count` is a plain round
 count for block events that have no per-round dates (if `rounds` is also set, the two must agree).
-`series` is a slug tying a record to its recurring-series class in `bcc.series`.
+When `rounds` is present the `.ics` emits those dates as calendar events instead of one span —
+evenly-spaced rounds collapse to a single repeating event (an `RRULE`), uneven ones become one
+event per round. `series` is a slug tying a record to its recurring-series class in `bcc.series`.
 
 | field | meaning |
 |------|---------|

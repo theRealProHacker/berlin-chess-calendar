@@ -120,10 +120,16 @@ class TestVisible(unittest.TestCase):
         self.assertNotIn("a-2027", vis)               # a is shown -> its predict hidden
         self.assertNotIn("b-2028", vis)               # only one predict per series
 
-    def test_ics_matches_visible_exactly(self):
+    def test_ics_covers_visible_records(self):
+        # Each visible record contributes >=1 VEVENT (a rounds record may emit several);
+        # non-visible records contribute none. These fixtures have no rounds, so one each.
         recs = self._recs()
-        self.assertEqual(build_ics(recs, today=TODAY).count("BEGIN:VEVENT"),
-                         len(build.visible(recs, TODAY)))
+        ics = build_ics(recs, today=TODAY)
+        self.assertEqual({t["id"] for t in build.visible(recs, TODAY)}, {"a-2026", "b-2027"})
+        for tid in ("a-2026", "b-2027"):
+            self.assertIn(f"UID:{tid}@berliner-schachkalender", ics)
+        for tid in ("a-2027", "b-2028"):
+            self.assertNotIn(tid, ics)
 
 
 class TestIcs(unittest.TestCase):
@@ -158,6 +164,77 @@ class TestIcs(unittest.TestCase):
         ics = build_ics([mk()], today=TODAY)
         self.assertEqual(ics.count("BEGIN:VCALENDAR"), 1)
         self.assertTrue(ics.endswith("\r\n"))
+
+
+class TestRounds(unittest.TestCase):
+    """A record with a `rounds` list emits its rounds, not one span (bcc.build._vevent):
+    evenly-spaced rounds -> one recurring VEVENT (RRULE); uneven -> one VEVENT per round."""
+
+    def test_round_rule_even_weekly(self):
+        self.assertEqual(build._round_rule(["2026-05-21", "2026-05-28", "2026-06-04"]), "FREQ=WEEKLY;COUNT=3")
+
+    def test_round_rule_even_biweekly(self):
+        self.assertEqual(build._round_rule(["2026-01-04", "2026-01-18", "2026-02-01"]), "FREQ=WEEKLY;COUNT=3;INTERVAL=2")
+
+    def test_round_rule_even_daily(self):
+        self.assertEqual(build._round_rule(["2026-01-01", "2026-01-04", "2026-01-07"]), "FREQ=DAILY;COUNT=3;INTERVAL=3")
+
+    def test_round_rule_uneven_is_none(self):
+        self.assertIsNone(build._round_rule(["2026-09-27", "2026-10-11", "2026-11-08"]))
+
+    def test_round_rule_single_is_none(self):
+        self.assertIsNone(build._round_rule(["2026-01-01"]))
+
+    def test_round_days_one_day(self):
+        t = mk(rounds=["2026-09-27", "2026-11-08"], rounds_count=2, start_date="2026-09-27", end_date="2026-11-08")
+        self.assertEqual(build._round_days(t), 1)
+
+    def test_round_days_weekend(self):
+        t = mk(rounds=["2026-09-05", "2026-11-14"], rounds_count=2, start_date="2026-09-05", end_date="2026-11-15")
+        self.assertEqual(build._round_days(t), 2)
+
+    def _even(self):
+        return mk(id="hl-2026", rounds=["2026-05-21", "2026-05-28", "2026-06-04", "2026-06-11",
+                  "2026-06-18", "2026-06-25", "2026-07-02"], rounds_count=7,
+                  start_date="2026-05-21", end_date="2026-07-02")
+
+    def test_even_is_one_recurring_vevent(self):
+        ics = build_ics([self._even()], today=TODAY)
+        self.assertEqual(ics.count("BEGIN:VEVENT"), 1)
+        self.assertIn("UID:hl-2026@berliner-schachkalender", ics)   # UID unchanged (no -r suffix)
+        self.assertNotIn("-r1@", ics)
+        self.assertIn("RRULE:FREQ=WEEKLY;COUNT=7", ics)
+        self.assertIn("DTSTART;VALUE=DATE:20260521", ics)
+        self.assertIn("DTEND;VALUE=DATE:20260522", ics)             # round_days=1 -> +1 exclusive
+
+    def _uneven(self, **o):
+        base = dict(id="bmm-2026", kind="league", rounds=["2026-09-27", "2026-10-11", "2026-11-08"],
+                    rounds_count=3, start_date="2026-09-27", end_date="2026-11-08")
+        base.update(o)
+        return mk(**base)
+
+    def test_uneven_splits_one_vevent_per_round(self):
+        ics = build_ics([self._uneven()], today=TODAY)
+        self.assertEqual(ics.count("BEGIN:VEVENT"), 3)
+        self.assertNotIn("RRULE", ics)
+        for n, d in [(1, "20260927"), (2, "20261011"), (3, "20261108")]:
+            self.assertIn(f"UID:bmm-2026-r{n}@berliner-schachkalender", ics)
+            self.assertIn(f"DTSTART;VALUE=DATE:{d}", ics)
+
+    def test_uneven_one_day_summary_is_runde(self):
+        ics = build_ics([self._uneven()], today=TODAY)
+        self.assertIn("1. Runde", ics)
+        self.assertNotIn("Spieltag", ics)
+
+    def test_uneven_weekend_summary_is_spieltag_and_spans_two_days(self):
+        t = self._uneven(id="bjmm-2026", kind="youth", participation="team", schedule_format="other",
+                         rounds=["2026-09-05", "2026-10-03", "2026-11-14"], rounds_count=3,
+                         start_date="2026-09-05", end_date="2026-11-15")
+        ics = build_ics([t], today=TODAY)
+        self.assertIn("1. Spieltag", ics)
+        self.assertNotIn("Runde", ics)
+        self.assertIn("DTSTART;VALUE=DATE:20260905", ics)
+        self.assertIn("DTEND;VALUE=DATE:20260907", ics)             # Sa+So, round_days=2 -> +2 exclusive
 
 
 if __name__ == "__main__":

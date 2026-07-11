@@ -281,7 +281,7 @@ window.TOURNAMENTS = __DATA__;
       empty:"Keine Turniere passen zu deinen Filtern. Setze einen Filter zurück.",
       toCal:"Zum Kalender", remember:"Vormerken", confirmed:"Bestätigt", expected:"Erwartet",
       forecast:"Vorhersage", notAnnounced:"noch nicht ausgeschrieben", expectedAround:"erwartet",
-      runden:"Runden", footL:"Berliner Schachkalender · offene Daten · Open Source",
+      runden:"Runden", runde:"Runde", spieltag:"Spieltag", allRounds:"alle Runden", footL:"Berliner Schachkalender · offene Daten · Open Source",
       footR:"Quellen: DSB Turnierdatenbank · Berliner Schachverband",
       months:["Jan","Feb","März","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"],
       monthsFull:["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"],
@@ -308,7 +308,7 @@ window.TOURNAMENTS = __DATA__;
       empty:"No tournaments match your filters. Try clearing one.",
       toCal:"Add to calendar", remember:"Remind me", confirmed:"Confirmed", expected:"Expected",
       forecast:"Forecast", notAnnounced:"not yet announced", expectedAround:"expected",
-      runden:"rounds", footL:"Berlin Chess Calendar · open data · open source",
+      runden:"rounds", runde:"round", spieltag:"matchday", allRounds:"all rounds", footL:"Berlin Chess Calendar · open data · open source",
       footR:"Sources: DSB tournament database · Berlin Chess Federation",
       months:["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
       monthsFull:["January","February","March","April","May","June","July","August","September","October","November","December"],
@@ -439,11 +439,14 @@ window.TOURNAMENTS = __DATA__;
     return '<li><div class="elink text"><span class="lk">'+label+'</span><span class="val">'+esc(val)+'</span></div></li>';
   }
   // ---- add to calendar (per event) ----------------------------------------
-  // icsEvent() MUST mirror bcc.build._vevent's ALL-DAY form: DTSTART;VALUE=DATE and
-  // DTEND;VALUE=DATE = end_date + 1 (RFC-5545 exclusive end). Contract pinned by
+  // icsEvent() MUST mirror bcc.build._vevent: an all-day form (DTSTART;VALUE=DATE, DTEND
+  // exclusive = end+1), except a `rounds` record emits its rounds — evenly spaced -> one
+  // recurring VEVENT (RRULE), uneven -> one VEVENT per round. Contract pinned by
   // tests/test_build.py TestIcs.test_dtend_exclusive — keep the two in sync.
   function ymd(iso){ return iso.replace(/-/g,""); }
-  function nextDay(iso){ var d=new Date(iso+"T00:00:00Z"); d.setUTCDate(d.getUTCDate()+1); return d.toISOString().slice(0,10); }
+  function addDays(iso,n){ var d=new Date(iso+"T00:00:00Z"); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); }
+  function nextDay(iso){ return addDays(iso,1); }
+  function daysBetween(a,b){ return Math.round((new Date(b+"T00:00:00Z")-new Date(a+"T00:00:00Z"))/864e5); }
   function icsEsc(s){ return String(s).replace(/([\\;,])/g,"\\$1").replace(/\n/g,"\\n"); }
   function calTitle(t){ return (t.status==="expected"?"[erwartet] ":"")+nameOf(t); }
   function calLoc(t){ return [t.venue,t.city].filter(Boolean).join(", "); }
@@ -455,20 +458,52 @@ window.TOURNAMENTS = __DATA__;
     if(t.source_url) d+="\n\n"+t.source_url;
     return d;
   }
+  // ---- round classifiers (mirror bcc.build._round_days / _round_rule) ------
+  function roundDays(t){ return daysBetween(t.rounds[t.rounds.length-1], t.end_date)+1; }
+  function roundRule(rounds){
+    if(!rounds||rounds.length<2) return null;
+    var gaps={};
+    for(var i=0;i<rounds.length-1;i++) gaps[daysBetween(rounds[i],rounds[i+1])]=1;
+    var keys=Object.keys(gaps);
+    if(keys.length!==1) return null;
+    var g=parseInt(keys[0],10), weekly=(g%7===0), step=weekly?g/7:g;
+    return "FREQ="+(weekly?"WEEKLY":"DAILY")+";COUNT="+rounds.length+(step!==1?";INTERVAL="+step:"");
+  }
+  // ""=normal/single event, "even"=one recurring VEVENT, "uneven"=one VEVENT per round
+  function roundKind(t){ if(!t.rounds||t.rounds.length<2) return ""; return roundRule(t.rounds)?"even":"uneven"; }
   function icsEvent(t){
-    var lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Berliner Schachkalender//bcc//DE","CALSCALE:GREGORIAN","METHOD:PUBLISH",
-      "BEGIN:VEVENT","UID:"+t.id+"@berliner-schachkalender","DTSTAMP:"+ymd(t.last_verified||t.start_date)+"T000000Z",
-      "DTSTART;VALUE=DATE:"+ymd(t.start_date),"DTEND;VALUE=DATE:"+ymd(nextDay(t.end_date)),
-      "SUMMARY:"+icsEsc(calTitle(t)),"DESCRIPTION:"+icsEsc(calDesc(t))];
-    if(calLoc(t)) lines.push("LOCATION:"+icsEsc(calLoc(t)));
-    lines.push("STATUS:"+(t.status==="expected"?"TENTATIVE":t.status==="cancelled"?"CANCELLED":"CONFIRMED"),
-      "TRANSP:TRANSPARENT","END:VEVENT","END:VCALENDAR");
-    return lines.join("\r\n")+"\r\n";
+    var stamp="DTSTAMP:"+ymd(t.last_verified||t.start_date)+"T000000Z";
+    var st="STATUS:"+(t.status==="expected"?"TENTATIVE":t.status==="cancelled"?"CANCELLED":"CONFIRMED");
+    function block(uid,start,end,summary,rrule){
+      var v=["BEGIN:VEVENT","UID:"+uid+"@berliner-schachkalender",stamp,
+        "DTSTART;VALUE=DATE:"+ymd(start),"DTEND;VALUE=DATE:"+ymd(end),
+        "SUMMARY:"+icsEsc(summary),"DESCRIPTION:"+icsEsc(calDesc(t))];
+      if(rrule) v.push("RRULE:"+rrule);
+      if(calLoc(t)) v.push("LOCATION:"+icsEsc(calLoc(t)));
+      return v.concat([st,"TRANSP:TRANSPARENT","END:VEVENT"]);
+    }
+    var rk=roundKind(t), body=[];
+    if(rk===""){
+      body=block(t.id, t.start_date, nextDay(t.end_date), calTitle(t), null);
+    } else if(rk==="even"){
+      var rd=roundDays(t);
+      body=block(t.id, t.rounds[0], addDays(t.rounds[0],rd), calTitle(t), roundRule(t.rounds));
+    } else {
+      var rd2=roundDays(t), word=rd2===1?L.runde:L.spieltag, pre=(t.status==="expected"?"[erwartet] ":"");
+      for(var i=0;i<t.rounds.length;i++)
+        body=body.concat(block(t.id+"-r"+(i+1), t.rounds[i], addDays(t.rounds[i],rd2), pre+nameOf(t)+" – "+(i+1)+". "+word, null));
+    }
+    return ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//Berliner Schachkalender//bcc//DE","CALSCALE:GREGORIAN","METHOD:PUBLISH"]
+      .concat(body,["END:VCALENDAR"]).join("\r\n")+"\r\n";
   }
   function qs(pairs){ return pairs.map(function(p){return p[0]+"="+encodeURIComponent(p[1]);}).join("&"); }
   function gcalHref(t){
-    return "https://calendar.google.com/calendar/render?"+qs([["action","TEMPLATE"],["text",calTitle(t)],
-      ["dates",ymd(t.start_date)+"/"+ymd(nextDay(t.end_date))],["details",calDesc(t)],["location",calLoc(t)],["ctz","Europe/Berlin"]]);
+    var dates, recur=null;
+    if(roundKind(t)==="even"){ var rd=roundDays(t); dates=ymd(t.rounds[0])+"/"+ymd(addDays(t.rounds[0],rd)); recur="RRULE:"+roundRule(t.rounds); }
+    else dates=ymd(t.start_date)+"/"+ymd(nextDay(t.end_date));
+    var pairs=[["action","TEMPLATE"],["text",calTitle(t)],["dates",dates],["details",calDesc(t)],["location",calLoc(t)],["ctz","Europe/Berlin"]];
+    if(recur) pairs.push(["recur",recur]);
+    return "https://calendar.google.com/calendar/render?"+qs(pairs);
   }
   function outlookHref(t){
     return "https://outlook.live.com/calendar/0/deeplink/compose?"+qs([["path","/calendar/action/compose"],["rru","addevent"],
@@ -486,10 +521,16 @@ window.TOURNAMENTS = __DATA__;
   var CAL_A='<svg viewBox="0 0 24 24"><path fill="#000" d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.043 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701"/></svg>';
   // one shared popover, repositioned to the clicked card's button (not one menu per card)
   function openCalMenu(t, anchor){
-    var m=$("calMenu");
-    m.innerHTML='<a class="calrow" role="menuitem" target="_blank" rel="noopener" href="'+esc(gcalHref(t))+'">'+CAL_G+'Google Kalender</a>'+
-      '<a class="calrow" role="menuitem" target="_blank" rel="noopener" href="'+esc(outlookHref(t))+'">'+CAL_O+'Outlook</a>'+
-      '<button class="calrow" role="menuitem" id="calIcs">'+CAL_A+'Apple (.ics)</button>';
+    // Round records only offer paths that can carry every round: Google's recur= link (even
+    // sets only) and the .ics download. Outlook's deeplink has no recurrence param, so it is
+    // dropped for any round record; uneven sets are .ics-only (no add-link can express them).
+    var m=$("calMenu"), rk=roundKind(t), rows="";
+    if(rk!=="uneven")
+      rows+='<a class="calrow" role="menuitem" target="_blank" rel="noopener" href="'+esc(gcalHref(t))+'">'+CAL_G+'Google Kalender</a>';
+    if(rk==="")
+      rows+='<a class="calrow" role="menuitem" target="_blank" rel="noopener" href="'+esc(outlookHref(t))+'">'+CAL_O+'Outlook</a>';
+    rows+='<button class="calrow" role="menuitem" id="calIcs">'+CAL_A+(rk===""?"Apple (.ics)":"Apple ("+L.allRounds+")")+'</button>';
+    m.innerHTML=rows;
     $("calIcs").onclick=function(){ downloadIcs(t); m.classList.remove("on"); };
     var r=anchor.getBoundingClientRect(), left=window.scrollX+r.right-238;  // 238 = .calmenu width
     if(left<8) left=8;

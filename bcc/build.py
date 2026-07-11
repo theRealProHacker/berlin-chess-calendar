@@ -159,48 +159,99 @@ def _fold(line):
     return "\r\n".join(c.decode("utf-8") for c in out)
 
 
+def _round_days(t):
+    """Length in days of each round, derived from the record itself: `rounds` stores the first
+    day of each round, and end_date is the last day of the final one, so the last round's span
+    is (end_date - rounds[-1] + 1). Rounds are assumed uniform (true for every record today: the
+    two youth events play Sa+So -> 2, the rest one day -> 1)."""
+    return (date.fromisoformat(t["end_date"]) - date.fromisoformat(t["rounds"][-1])).days + 1
+
+
+def _round_rule(rounds):
+    """An RRULE body if the rounds are evenly spaced (>=2 rounds, all gaps equal), else None.
+    Even sets collapse to one recurring VEVENT; uneven sets are split into one VEVENT per round
+    (RDATE is unsafe — Apple ignores it, Outlook rejects it)."""
+    if len(rounds) < 2:
+        return None
+    ds = [date.fromisoformat(x) for x in rounds]
+    gaps = {(ds[i + 1] - ds[i]).days for i in range(len(ds) - 1)}
+    if len(gaps) != 1:
+        return None
+    g = gaps.pop()
+    freq, step = ("WEEKLY", g // 7) if g % 7 == 0 else ("DAILY", g)
+    return f"FREQ={freq};COUNT={len(rounds)}" + (f";INTERVAL={step}" if step != 1 else "")
+
+
 def _vevent(t):
-    # The all-day VEVENT shape (DTSTART;VALUE=DATE, DTEND = end+1) is mirrored by
+    # The all-day VEVENT shape (DTSTART;VALUE=DATE, DTEND exclusive) is mirrored by
     # site/template.html icsEvent() for per-event "add to calendar" — keep the two in sync.
-    end = date.fromisoformat(t["end_date"]) + timedelta(days=1)  # iCal DTEND is exclusive
-    summary = ("[erwartet] " if t["status"] == "expected" else "") + t["name"]
-    bits = [t["kind"]]
-    if t.get("organizer"):
-        bits.append(t["organizer"])
-    if t.get("prize_pool"):
-        bits.append(f"{t['prize_pool']['amount']} {t['prize_pool']['currency']} Preisfonds")
-    if t.get("rounds_count") or t.get("rounds"):
-        bits.append(f"{t.get('rounds_count') or len(t['rounds'])} Runden")
-    if t["status"] == "expected":
-        bits.append("erwartet, noch nicht bestätigt")
-    loc = ", ".join(x for x in (t.get("venue"), t.get("city")) if x)
+    # A record with a `rounds` list emits its rounds, not one spanning block: evenly-spaced
+    # rounds collapse to a single recurring VEVENT (RRULE), uneven ones become one VEVENT per
+    # round. Everything else stays one all-day VEVENT over start_date..end_date.
     status = {"confirmed": "CONFIRMED", "expected": "TENTATIVE", "cancelled": "CANCELLED"}.get(t["status"], "CONFIRMED")
+    loc = ", ".join(x for x in (t.get("venue"), t.get("city")) if x)
+    categories = _esc(",".join([t["kind"], t["variant"], t["time_control"], t["participation"]]))
     # The four event links, labeled, appended to the description (registration may be a URL
     # or a phrase like "über Qualifikation"). source_url also drives URL:, the PDF also ATTACH:.
     links = [(lbl, t[f]) for lbl, f in (("Webseite", "source_url"), ("Anmeldung", "registration"),
               ("Chess Results", "chess_results_url"), ("Ausschreibung", "ausschreibung_url")) if t.get(f)]
-    desc = " · ".join(bits)
-    if links:
-        desc += "\n\n" + "\n".join(f"{lbl}: {val}" for lbl, val in links)
-    lines = [
-        "BEGIN:VEVENT",
-        f"UID:{t['id']}@berliner-schachkalender",
-        f"DTSTAMP:{t['last_verified'].replace('-', '')}T000000Z",
-        f"DTSTART;VALUE=DATE:{t['start_date'].replace('-', '')}",
-        f"DTEND;VALUE=DATE:{end.isoformat().replace('-', '')}",
-        f"SUMMARY:{_esc(summary)}",
-        f"DESCRIPTION:{_esc(desc)}",
-        f"STATUS:{status}",
-        f"CATEGORIES:{_esc(','.join([t['kind'], t['variant'], t['time_control'], t['participation']]))}",
-        "TRANSP:TRANSPARENT",
-    ]
-    if loc:
-        lines.append(f"LOCATION:{_esc(loc)}")
-    if t.get("source_url"):
-        lines.append(f"URL:{t['source_url']}")
-    if t.get("ausschreibung_url"):
-        lines.append(f"ATTACH:{t['ausschreibung_url']}")
-    lines.append("END:VEVENT")
+
+    def block(uid, start, end, summary, rrule=None, rounds_bit=True):
+        bits = [t["kind"]]
+        if t.get("organizer"):
+            bits.append(t["organizer"])
+        if t.get("prize_pool"):
+            bits.append(f"{t['prize_pool']['amount']} {t['prize_pool']['currency']} Preisfonds")
+        if rounds_bit and (t.get("rounds_count") or t.get("rounds")):
+            bits.append(f"{t.get('rounds_count') or len(t['rounds'])} Runden")
+        if t["status"] == "expected":
+            bits.append("erwartet, noch nicht bestätigt")
+        desc = " · ".join(bits)
+        if links:
+            desc += "\n\n" + "\n".join(f"{lbl}: {val}" for lbl, val in links)
+        out = [
+            "BEGIN:VEVENT",
+            f"UID:{uid}@berliner-schachkalender",
+            f"DTSTAMP:{t['last_verified'].replace('-', '')}T000000Z",
+            f"DTSTART;VALUE=DATE:{start:%Y%m%d}",
+            f"DTEND;VALUE=DATE:{end:%Y%m%d}",
+            f"SUMMARY:{_esc(summary)}",
+            f"DESCRIPTION:{_esc(desc)}",
+            f"STATUS:{status}",
+            f"CATEGORIES:{categories}",
+            "TRANSP:TRANSPARENT",
+        ]
+        if rrule:
+            out.append(f"RRULE:{rrule}")
+        if loc:
+            out.append(f"LOCATION:{_esc(loc)}")
+        if t.get("source_url"):
+            out.append(f"URL:{t['source_url']}")
+        if t.get("ausschreibung_url"):
+            out.append(f"ATTACH:{t['ausschreibung_url']}")
+        out.append("END:VEVENT")
+        return out
+
+    prefix = "[erwartet] " if t["status"] == "expected" else ""
+    rounds = t.get("rounds")
+    if not rounds or len(rounds) < 2:  # normal / rounds_count-only: one spanning event
+        start = date.fromisoformat(t["start_date"])
+        end = date.fromisoformat(t["end_date"]) + timedelta(days=1)  # iCal DTEND is exclusive
+        return block(t["id"], start, end, prefix + t["name"])
+
+    rdays = _round_days(t)
+    rule = _round_rule(rounds)
+    if rule:  # evenly spaced -> one recurring VEVENT (UID unchanged: subscribers reshape in place)
+        start = date.fromisoformat(rounds[0])
+        return block(t["id"], start, start + timedelta(days=rdays), prefix + t["name"], rrule=rule, rounds_bit=False)
+
+    # unevenly spaced -> one VEVENT per round; index-based UID so a date fix moves a round, not dupes it
+    word = "Runde" if rdays == 1 else "Spieltag"
+    lines = []
+    for i, r in enumerate(rounds, 1):
+        start = date.fromisoformat(r)
+        summary = f"{prefix}{t['name']} – {i}. {word}"
+        lines += block(f"{t['id']}-r{i}", start, start + timedelta(days=rdays), summary, rounds_bit=False)
     return lines
 
 
